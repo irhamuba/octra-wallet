@@ -1,0 +1,391 @@
+/**
+ * Storage Utilities for Octra Wallet
+ * Handles encrypted wallet storage, multi-wallet management, and settings
+ */
+
+const STORAGE_KEYS = {
+    WALLETS: 'octra_wallets', // Array of encrypted wallets
+    ACTIVE_WALLET: 'octra_active_wallet', // Index of active wallet
+    SETTINGS: 'octra_settings',
+    TX_HISTORY: 'octra_tx_history',
+    PASSWORD_HASH: 'octra_pw_hash', // Hashed password for verification
+};
+
+/**
+ * Hash password using SHA-256
+ */
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password + 'octra_salt_v1');
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Derive encryption key from password
+ */
+async function deriveKey(password) {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(password),
+        'PBKDF2',
+        false,
+        ['deriveBits', 'deriveKey']
+    );
+
+    return await crypto.subtle.deriveKey(
+        {
+            name: 'PBKDF2',
+            salt: encoder.encode('octra_wallet_salt_v1'),
+            iterations: 100000,
+            hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+    );
+}
+
+/**
+ * Encrypt data with password
+ */
+async function encryptData(data, password) {
+    try {
+        const key = await deriveKey(password);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoder = new TextEncoder();
+        const encoded = encoder.encode(JSON.stringify(data));
+
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            encoded
+        );
+
+        // Combine IV and encrypted data
+        const combined = new Uint8Array(iv.length + encrypted.byteLength);
+        combined.set(iv);
+        combined.set(new Uint8Array(encrypted), iv.length);
+
+        return btoa(String.fromCharCode(...combined));
+    } catch (error) {
+        console.error('Encryption failed:', error);
+        throw new Error('Failed to encrypt data');
+    }
+}
+
+/**
+ * Decrypt data with password
+ */
+async function decryptData(encryptedData, password) {
+    try {
+        const key = await deriveKey(password);
+        const combined = Uint8Array.from(atob(encryptedData), c => c.charCodeAt(0));
+
+        const iv = combined.slice(0, 12);
+        const encrypted = combined.slice(12);
+
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            encrypted
+        );
+
+        const decoder = new TextDecoder();
+        return JSON.parse(decoder.decode(decrypted));
+    } catch (error) {
+        console.error('Decryption failed:', error);
+        throw new Error('Invalid password or corrupted data');
+    }
+}
+
+// ===== Password Management =====
+
+/**
+ * Set wallet password (only during initial setup)
+ */
+export async function setWalletPassword(password) {
+    const hash = await hashPassword(password);
+    localStorage.setItem(STORAGE_KEYS.PASSWORD_HASH, hash);
+}
+
+/**
+ * Verify password
+ */
+export async function verifyPassword(password) {
+    const stored = localStorage.getItem(STORAGE_KEYS.PASSWORD_HASH);
+    if (!stored) return false;
+
+    const hash = await hashPassword(password);
+    return hash === stored;
+}
+
+/**
+ * Check if password is set
+ */
+export function hasPassword() {
+    return !!localStorage.getItem(STORAGE_KEYS.PASSWORD_HASH);
+}
+
+/**
+ * Change password (requires current password)
+ */
+export async function changePassword(currentPassword, newPassword) {
+    // Verify current password
+    const isValid = await verifyPassword(currentPassword);
+    if (!isValid) throw new Error('Invalid current password');
+
+    // Get all wallets with current password
+    const wallets = await loadWallets(currentPassword);
+
+    // Re-encrypt with new password
+    await saveWallets(wallets, newPassword);
+
+    // Update password hash
+    await setWalletPassword(newPassword);
+
+    return true;
+}
+
+// ===== Multi-Wallet Management =====
+
+/**
+ * Save all wallets (encrypted)
+ */
+export async function saveWallets(wallets, password) {
+    try {
+        const encrypted = await encryptData(wallets, password);
+        localStorage.setItem(STORAGE_KEYS.WALLETS, encrypted);
+        return true;
+    } catch (error) {
+        console.error('Failed to save wallets:', error);
+        return false;
+    }
+}
+
+/**
+ * Load all wallets (requires password)
+ */
+export async function loadWallets(password) {
+    try {
+        const encrypted = localStorage.getItem(STORAGE_KEYS.WALLETS);
+        if (!encrypted) return [];
+        return await decryptData(encrypted, password);
+    } catch (error) {
+        console.error('Failed to load wallets:', error);
+        throw error;
+    }
+}
+
+/**
+ * Add a new wallet
+ */
+export async function addWallet(wallet, password) {
+    const wallets = await loadWallets(password);
+
+    // Check for duplicate address
+    if (wallets.some(w => w.address === wallet.address)) {
+        throw new Error('Wallet already exists');
+    }
+
+    // Add wallet with metadata
+    const walletWithMeta = {
+        ...wallet,
+        name: wallet.name || `Wallet ${wallets.length + 1}`,
+        createdAt: Date.now(),
+        id: crypto.randomUUID()
+    };
+
+    wallets.push(walletWithMeta);
+    await saveWallets(wallets, password);
+
+    // Set as active if first wallet
+    if (wallets.length === 1) {
+        setActiveWalletIndex(0);
+    }
+
+    return walletWithMeta;
+}
+
+/**
+ * Remove a wallet
+ */
+export async function removeWallet(walletId, password) {
+    const wallets = await loadWallets(password);
+    const filtered = wallets.filter(w => w.id !== walletId);
+
+    if (filtered.length === wallets.length) {
+        throw new Error('Wallet not found');
+    }
+
+    await saveWallets(filtered, password);
+
+    // Adjust active index if needed
+    const activeIndex = getActiveWalletIndex();
+    if (activeIndex >= filtered.length) {
+        setActiveWalletIndex(Math.max(0, filtered.length - 1));
+    }
+
+    return true;
+}
+
+/**
+ * Update wallet name
+ */
+export async function updateWalletName(walletId, name, password) {
+    const wallets = await loadWallets(password);
+    const wallet = wallets.find(w => w.id === walletId);
+
+    if (!wallet) throw new Error('Wallet not found');
+
+    wallet.name = name;
+    await saveWallets(wallets, password);
+
+    return wallet;
+}
+
+/**
+ * Get/Set active wallet index
+ */
+export function getActiveWalletIndex() {
+    const index = localStorage.getItem(STORAGE_KEYS.ACTIVE_WALLET);
+    return index ? parseInt(index, 10) : 0;
+}
+
+export function setActiveWalletIndex(index) {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_WALLET, index.toString());
+}
+
+/**
+ * Check if any wallets exist
+ */
+export function hasWallets() {
+    return !!localStorage.getItem(STORAGE_KEYS.WALLETS);
+}
+
+/**
+ * Clear all wallet data (for disconnect/reset)
+ */
+export function clearAllData() {
+    localStorage.removeItem(STORAGE_KEYS.WALLETS);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_WALLET);
+    localStorage.removeItem(STORAGE_KEYS.PASSWORD_HASH);
+    localStorage.removeItem(STORAGE_KEYS.TX_HISTORY);
+}
+
+// ===== Settings =====
+
+const DEFAULT_SETTINGS = {
+    rpcUrl: 'https://testnet.octra.network',
+    currency: 'USD',
+    theme: 'dark',
+    autoLockMinutes: 5,
+};
+
+export function getSettings() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+        if (!stored) return DEFAULT_SETTINGS;
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+    } catch {
+        return DEFAULT_SETTINGS;
+    }
+}
+
+export function saveSettings(settings) {
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+}
+
+// ===== Transaction History =====
+
+export function getTxHistory() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.TX_HISTORY);
+        if (!stored) return [];
+        return JSON.parse(stored);
+    } catch {
+        return [];
+    }
+}
+
+export function addToTxHistory(tx) {
+    const history = getTxHistory();
+    history.unshift({
+        ...tx,
+        timestamp: Date.now()
+    });
+    // Keep only last 100 transactions
+    const trimmed = history.slice(0, 100);
+    localStorage.setItem(STORAGE_KEYS.TX_HISTORY, JSON.stringify(trimmed));
+}
+
+// ===== Export/Import =====
+
+export function exportWallet(wallet, filename) {
+    const data = {
+        address: wallet.address,
+        publicKey: wallet.publicKeyB64,
+        privateKey: wallet.privateKeyB64,
+        mnemonic: wallet.mnemonic,
+        exportedAt: new Date().toISOString()
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `octra_wallet_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+export function parseImportedWallet(jsonString) {
+    try {
+        const data = JSON.parse(jsonString);
+        if (!data.privateKey && !data.priv) {
+            throw new Error('Invalid wallet file');
+        }
+        return {
+            privateKeyB64: data.privateKey || data.priv,
+            publicKeyB64: data.publicKey || data.pub,
+            address: data.address,
+            mnemonic: data.mnemonic
+        };
+    } catch (error) {
+        throw new Error('Failed to parse wallet file');
+    }
+}
+
+// Legacy single wallet functions (for backwards compatibility)
+export function saveWallet(walletData) {
+    console.warn('saveWallet is deprecated, use saveWallets instead');
+    try {
+        // Simple encoding for legacy support
+        const encoded = btoa(JSON.stringify(walletData));
+        localStorage.setItem('octra_wallet_legacy', encoded);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+export function loadWallet() {
+    console.warn('loadWallet is deprecated, use loadWallets instead');
+    try {
+        const encoded = localStorage.getItem('octra_wallet_legacy');
+        if (!encoded) return null;
+        return JSON.parse(atob(encoded));
+    } catch (error) {
+        return null;
+    }
+}
+
+export function clearWallet() {
+    console.warn('clearWallet is deprecated, use clearAllData instead');
+    localStorage.removeItem('octra_wallet_legacy');
+}
