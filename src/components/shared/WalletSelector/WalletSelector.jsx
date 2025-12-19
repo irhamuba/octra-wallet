@@ -13,8 +13,8 @@ import {
     CopyIcon,
     WalletIcon,
     EditIcon
-} from './Icons';
-import { truncateAddress } from '../../utils/crypto';
+} from '../Icons';
+import { truncateAddress } from '../../../utils/crypto';
 
 export function WalletSelector({
     wallets,

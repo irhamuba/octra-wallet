@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { OctraLogo, OctraTokenLogo } from './Icons';
+import { OctraLogo, OctraTokenLogo } from '../Icons';
 import './TokenIcon.css';
 
 // Token metadata cache - in production this would come from an API or explorer

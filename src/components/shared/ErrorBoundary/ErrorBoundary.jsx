@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertIcon, RefreshIcon } from './Icons';
+import { AlertIcon, RefreshIcon } from '../Icons';
 import './ErrorBoundary.css';
 
 export class ErrorBoundary extends React.Component {

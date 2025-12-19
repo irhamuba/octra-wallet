@@ -1,8 +1,10 @@
-// Shared Icons
+/**
+ * Shared Components Index
+ * Re-exports all shared components for easy importing
+ */
+
+export { ConfirmTransactionModal } from './ConfirmTransactionModal';
+export { ErrorBoundary } from './ErrorBoundary';
 export * from './Icons';
-
-// Token Icon Component
-export { TokenIcon, getTokenInfo, formatTokenAmount } from './TokenIcon';
-
-// Wallet Selector Component
-export * from './WalletSelector';
+export { TokenIcon } from './TokenIcon';
+export { WalletSelector, WalletHeader } from './WalletSelector';

@@ -1,5 +1,5 @@
-import { formatAmount } from '../../utils/crypto';
-import { CloseIcon, AlertIcon, SendIcon } from '../shared/Icons';
+import { formatAmount } from '../../../utils/crypto';
+import { CloseIcon, AlertIcon, SendIcon } from '../Icons';
 import './ConfirmTransactionModal.css';
 
 export function ConfirmTransactionModal({
