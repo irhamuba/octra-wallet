@@ -286,7 +286,7 @@ export function clearAllData() {
 
 const DEFAULT_SETTINGS = {
     network: 'testnet',
-    rpcUrl: 'https://octra.network',
+    rpcUrl: import.meta.env.VITE_RPC_URL || 'https://octra.network',
     currency: 'USD',
     theme: 'dark',
     autoLockMinutes: 5,

@@ -298,7 +298,7 @@ function NetworkSettings({ settings, onUpdateSettings, onBack }) {
     const [testResult, setTestResult] = useState(null);
 
     const presets = settings.network === 'testnet' ? [
-        { name: 'Octra Testnet', url: 'https://octra.network' },
+        { name: 'Octra Testnet', url: import.meta.env.VITE_RPC_URL || 'https://octra.network' },
         { name: 'Local Node', url: 'http://localhost:8080' },
     ] : [
         { name: 'Local Node', url: 'http://localhost:8080' },
