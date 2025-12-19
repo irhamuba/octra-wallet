@@ -3,7 +3,10 @@
  * Handles communication with the Octra network
  */
 
-const DEFAULT_RPC = 'https://testnet.octra.network';
+// Use proxy in development to bypass CORS
+const isDev = import.meta.env.DEV;
+const DEFAULT_RPC = isDev ? '/api' : 'https://octra.network';
+const ACTUAL_RPC = 'https://octra.network';
 
 class RPCClient {
     constructor(rpcUrl = DEFAULT_RPC) {
@@ -12,7 +15,18 @@ class RPCClient {
     }
 
     setRpcUrl(url) {
-        this.rpcUrl = url;
+        // In development, redirect external URLs to proxy
+        if (isDev && url === ACTUAL_RPC) {
+            this.rpcUrl = '/api';
+        } else if (isDev && url.startsWith('https://octra.network')) {
+            this.rpcUrl = '/api';
+        } else {
+            this.rpcUrl = url;
+        }
+    }
+
+    getActualRpcUrl() {
+        return this.rpcUrl === '/api' ? ACTUAL_RPC : this.rpcUrl;
     }
 
     async request(method, path, data = null) {

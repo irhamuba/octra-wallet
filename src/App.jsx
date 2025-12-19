@@ -33,12 +33,15 @@ import {
   updateWalletName
 } from './utils/storage';
 import { getRpcClient, setRpcUrl } from './utils/rpc';
+import { keyringService } from './services/KeyringService';
 
 // Toast component
 function Toast({ message, type }) {
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
   return (
     <div className={`toast toast-${type}`}>
-      {message}
+      <span className="toast-icon">{icon}</span>
+      <span className="toast-message">{message}</span>
     </div>
   );
 }
@@ -130,17 +133,20 @@ function App() {
       refreshBalance();
       refreshTransactions();
 
-      // Auto refresh every 30 seconds
       const interval = setInterval(() => {
         refreshBalance();
-      }, 30000);
+        refreshTransactions();
+      }, 10000);
 
       return () => clearInterval(interval);
     }
   }, [wallet, view, isUnlocked]);
 
-  // Lock wallet
+  // Lock wallet - SECURITY: Wipes all keys from memory
   const handleLock = useCallback(() => {
+    // CRITICAL: Securely wipe all keys from memory via KeyringService
+    keyringService.lock();
+
     setIsUnlocked(false);
     setPassword(null);
     setWallets([]);
@@ -159,6 +165,9 @@ function App() {
     if (loadedWallets.length === 0) {
       throw new Error('No wallets found');
     }
+
+    // SECURITY: Initialize KeyringService with decrypted keys
+    await keyringService.unlock(enteredPassword, loadedWallets);
 
     setPassword(enteredPassword);
     setWallets(loadedWallets);
@@ -182,8 +191,8 @@ function App() {
 
     setIsUnlocked(true);
     setView('dashboard');
-    showToast('Wallet created successfully!', 'success');
-  }, [pendingWallet, showToast]);
+    // Removed success toast - user can see wallet is created
+  }, [pendingWallet]);
 
   // Refresh balance
   const refreshBalance = useCallback(async () => {
@@ -223,7 +232,7 @@ function App() {
                 address: isIncoming ? parsed.from : parsed.to,
                 timestamp: parsed.timestamp * 1000,
                 status: 'confirmed',
-                epoch: ref.epoch
+                blockNumber: ref.epoch || ref.block || txData.block || txData.epoch || txData.block_height || parsed.block
               };
             } catch {
               return null;
@@ -249,11 +258,15 @@ function App() {
       const passToUse = newPassword || password;
       await addWallet(newWallet, passToUse);
 
+      // SECURITY: Initialize keyring and add key
+      await keyringService.initialize(passToUse);
+      keyringService.addKey(newWallet.address, newWallet.privateKeyB64, newWallet.publicKeyB64);
+
       setPassword(passToUse);
       setWallets([{ ...newWallet, id: crypto.randomUUID(), name: 'Wallet 1' }]);
       setIsUnlocked(true);
       setView('dashboard');
-      showToast('Wallet created successfully!', 'success');
+      // Removed success toast
     } catch (err) {
       console.error('Failed to create wallet:', err);
       showToast(err.message || 'Failed to create wallet', 'error');
@@ -271,12 +284,18 @@ function App() {
       const passToUse = newPassword || password;
       await addWallet(importedWallet, passToUse);
 
+      // SECURITY: Initialize keyring and add key
+      if (!keyringService.isUnlocked()) {
+        await keyringService.initialize(passToUse);
+      }
+      keyringService.addKey(importedWallet.address, importedWallet.privateKeyB64, importedWallet.publicKeyB64);
+
       setPassword(passToUse);
       const existingWallets = wallets.length > 0 ? wallets : [];
       setWallets([...existingWallets, { ...importedWallet, id: crypto.randomUUID(), name: `Wallet ${existingWallets.length + 1}` }]);
       setIsUnlocked(true);
       setView('dashboard');
-      showToast('Wallet imported successfully!', 'success');
+      // Removed success toast
     } catch (err) {
       console.error('Failed to import wallet:', err);
       showToast(err.message || 'Failed to import wallet', 'error');
@@ -293,8 +312,8 @@ function App() {
     setTransactions([]);
     setIsUnlocked(false);
     setView('welcome');
-    showToast('Wallet disconnected', 'info');
-  }, [showToast]);
+    // Removed disconnect toast
+  }, []);
 
   // Update settings
   const handleUpdateSettings = useCallback((newSettings) => {
@@ -306,8 +325,8 @@ function App() {
       setRpcUrl(newSettings.rpcUrl);
     }
 
-    showToast('Settings saved', 'success');
-  }, [settings, showToast]);
+    // Removed settings saved toast
+  }, [settings]);
 
   // Switch wallet
   const handleSwitchWallet = useCallback((index) => {
@@ -320,7 +339,7 @@ function App() {
   // Add new wallet (from Dashboard modal)
   const handleAddWallet = useCallback(async (options) => {
     try {
-      const { generateWallet, importFromPrivateKey } = await import('./utils/crypto.js');
+      const { generateWallet, importFromPrivateKey, importFromMnemonic } = await import('./utils/crypto.js');
 
       let newWallet;
 
@@ -330,12 +349,18 @@ function App() {
       } else if (options.type === 'import') {
         // Import from private key
         newWallet = await importFromPrivateKey(options.privateKey);
+      } else if (options.type === 'import_mnemonic') {
+        // Import from mnemonic
+        newWallet = await importFromMnemonic(options.mnemonic);
       } else {
         throw new Error('Invalid add wallet type');
       }
 
       // Add to storage
       await addWallet(newWallet, password);
+
+      // SECURITY: Add key to KeyringService
+      keyringService.addKey(newWallet.address, newWallet.privateKeyB64, newWallet.publicKeyB64);
 
       // Update state
       const walletWithMeta = {
@@ -354,12 +379,12 @@ function App() {
       setBalance(0);
       setTransactions([]);
 
-      showToast(`Wallet ${options.type === 'create' ? 'created' : 'imported'} successfully!`, 'success');
+      // Removed success toast
     } catch (err) {
       console.error('Failed to add wallet:', err);
       throw err;
     }
-  }, [password, wallets, showToast]);
+  }, [password, wallets]);
 
   // Rename wallet
   const handleRenameWallet = useCallback(async (index, newName) => {
@@ -375,7 +400,7 @@ function App() {
       updatedWallets[index] = { ...walletToUpdate, name: newName };
       setWallets(updatedWallets);
 
-      showToast('Wallet renamed successfully', 'success');
+      // Removed success toast
     } catch (err) {
       console.error('Failed to rename wallet:', err);
       showToast('Failed to rename wallet', 'error');
@@ -451,6 +476,7 @@ function App() {
           onRefresh={() => { refreshBalance(); refreshTransactions(); }}
           isRefreshing={isRefreshing}
           settings={settings}
+          onUpdateSettings={handleUpdateSettings}
           onOpenSettings={() => setView('settings')}
           onLock={handleLock}
         />

@@ -238,3 +238,92 @@ export const EditIcon = ({ size = 24, className = '' }) => (
         <path d="M18.5 2.5C18.8978 2.10217 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10217 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10217 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
 );
+
+// Privacy icon (lock with shield)
+export const PrivacyIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M12 2L4 6V12C4 16.4183 7.58172 20 12 20C16.4183 20 20 16.4183 20 12V6L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="12" cy="10" r="2" stroke="currentColor" strokeWidth="2" />
+        <path d="M12 12V15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
+// Shield icon (for shielding balance)
+export const ShieldIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M12 2L4 6V11C4 16.5228 7.58172 21 12 22C16.4183 21 20 16.5228 20 11V6L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 12L11 14L15 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+// Unshield icon (eye with shield outline)
+export const UnshieldIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M12 2L4 6V11C4 16.5228 7.58172 21 12 22C16.4183 21 20 16.5228 20 11V6L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2" />
+        <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="2" />
+        <path d="M7 12C7 12 9 9 12 9C15 9 17 12 17 12C17 12 15 15 12 15C9 15 7 12 7 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+// Private transfer icon (locked send)
+export const PrivateTransferIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <rect x="6" y="10" width="12" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+        <path d="M8 10V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 14V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="12" cy="14" r="1" fill="currentColor" />
+    </svg>
+);
+
+// Claim icon (download with check)
+export const ClaimIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M12 3V14M12 14L7 9M12 14L17 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M3 17V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
+// Public balance icon (visible eye)
+export const PublicIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    </svg>
+);
+
+
+// Bridge icon
+export const BridgeIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M4 19V15M4 15V9C4 7 5 5 8 5M4 15H20M20 19V15M20 15V9C20 7 19 5 16 5M8 5C10 5 11 6 12 7C13 6 14 5 16 5M8 5V9M16 5V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 19H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
+// Earn/Staking icon alt
+export const EarnIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M12 1V23" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M17 5H9.5C8.57174 5 7.6815 5.36875 7.02513 6.02513C6.36875 6.6815 6 7.57174 6 8.5C6 9.42826 6.36875 10.3185 7.02513 10.9749C7.6815 11.6313 8.57174 12 9.5 12H14.5C15.4283 12 16.3185 12.3687 16.9749 13.0251C17.6313 13.6815 18 14.5717 18 15.5C18 16.4283 17.6313 17.3185 16.9749 17.9749C16.3185 18.6313 15.4283 19 14.5 19H6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+// Contract icon
+export const ContractIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 13H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 17H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M10 9H9H8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+);
+
+// Gas/Fuel icon
+export const GasIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M3 22V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 7H12.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+);

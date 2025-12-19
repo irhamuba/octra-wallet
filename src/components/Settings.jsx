@@ -247,7 +247,7 @@ function NetworkSettings({ settings, onUpdateSettings, onBack }) {
     const [testResult, setTestResult] = useState(null);
 
     const presets = [
-        { name: 'Testnet (Default)', url: 'https://testnet.octra.network' },
+        { name: 'Octra Network', url: 'https://octra.network' },
         { name: 'Local Node', url: 'http://localhost:8080' },
     ];
 
@@ -258,7 +258,14 @@ function NetworkSettings({ settings, onUpdateSettings, onBack }) {
         setTestResult(null);
 
         try {
-            const response = await fetch(`${rpcUrl}/staging`, {
+            // In development, use proxy to bypass CORS
+            const isDev = import.meta.env.DEV;
+            let testUrl = rpcUrl;
+            if (isDev && (rpcUrl === 'https://octra.network' || rpcUrl.startsWith('https://octra.network'))) {
+                testUrl = '/api';
+            }
+
+            const response = await fetch(`${testUrl}/staging`, {
                 method: 'GET',
                 signal: AbortSignal.timeout(5000)
             });

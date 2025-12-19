@@ -32,20 +32,20 @@
   --error: #FF5252;
   --error-bg: rgba(255, 82, 82, 0.1);
 
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 24px;
-  --space-2xl: 32px;
-  --space-3xl: 48px;
+  /* Spacing - Tighter for mobile feel */
+  --space-xs: 2px;
+  --space-sm: 6px;
+  --space-md: 10px;
+  --space-lg: 14px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
 
   /* Border Radius */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
   --radius-full: 9999px;
 
   /* Shadows */
@@ -63,10 +63,10 @@
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', 'Monaco', 'Consolas', monospace;
 
-  /* Container */
-  --container-width: 420px;
-  --header-height: 60px;
-  --nav-height: 72px;
+  /* Container - Mobile Standard */
+  --container-width: 360px;
+  --header-height: 52px;
+  --nav-height: 60px;
 }
 
 /* Reset & Base */
@@ -89,7 +89,8 @@ body {
   font-family: var(--font-family);
   background: var(--bg-primary);
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 1.4;
+  /* Tighter line height */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -99,47 +100,48 @@ body {
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 20px;
+  padding-top: 10px;
 }
 
-/* Typography Utilities */
+/* Typography Utilities - Compact Scale */
 .text-xs {
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.text-sm {
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.text-base {
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.text-md {
-  font-size: 16px;
-  line-height: 1.5;
-}
-
-.text-lg {
-  font-size: 20px;
-  line-height: 1.4;
-}
-
-.text-xl {
-  font-size: 24px;
-  line-height: 1.3;
-}
-
-.text-2xl {
-  font-size: 32px;
+  font-size: 10px;
   line-height: 1.2;
 }
 
+.text-sm {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.text-base {
+  font-size: 13px;
+  /* Standard mobile text size */
+  line-height: 1.4;
+}
+
+.text-md {
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.text-lg {
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.text-xl {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.text-2xl {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
 .text-3xl {
-  font-size: 40px;
+  font-size: 36px;
   line-height: 1.1;
 }
 
@@ -181,6 +183,8 @@ body {
 
 .text-error {
   color: var(--error);
+  font-size: 10px !important;
+  line-height: 1.3;
 }
 
 .text-center {
@@ -705,11 +709,11 @@ textarea.input {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: var(--space-md) var(--space-xl);
+  padding: var(--space-xs) var(--space-md);
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  font-size: 14px;
+  font-size: 10px !important;
   font-weight: 500;
   z-index: 1000;
   animation: fadeInUp var(--transition-normal) ease;

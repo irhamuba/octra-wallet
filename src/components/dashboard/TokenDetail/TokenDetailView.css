@@ -1,0 +1,246 @@
+/* TokenDetailView.css - Nano Compact MK2 (Ultra Slim) */
+
+.token-detail-view {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    animation: fadeIn 0.3s ease;
+    overflow-y: auto;
+    padding: 0 12px 12px 12px;
+}
+
+.token-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 0;
+}
+
+/* Compact Info Section */
+.token-info-card {
+    background: none;
+    border: none;
+    padding: 4px 0;
+    /* Reduced from 12px */
+    margin-bottom: 8px;
+    /* Reduced from 16px */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: none;
+    flex-shrink: 0;
+}
+
+.token-info-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.token-info-name h3 {
+    font-size: 15px;
+    /* Reduced from 18px */
+    margin: 0;
+    font-weight: 600;
+}
+
+.token-info-symbol {
+    color: var(--text-tertiary);
+    font-size: 12px;
+}
+
+.token-balance-section {
+    margin-bottom: 8px;
+}
+
+.token-balance-label {
+    color: var(--text-tertiary);
+    font-size: 10px;
+    /* Smaller */
+    margin-bottom: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.token-balance-amount {
+    font-size: 22px;
+    /* Reduced from 28px */
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    letter-spacing: -0.5px;
+}
+
+/* Minimal Dividers */
+.token-price-section {
+    width: 100%;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.token-price-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    /* Smaller */
+}
+
+.token-price-label {
+    color: var(--text-secondary);
+}
+
+.token-price-value {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+/* Actions - No background and no border */
+.token-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin: 12px 0 16px 0;
+    /* Reduced margins */
+    flex-shrink: 0;
+}
+
+.token-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px;
+    /* Reduced padding */
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 11px;
+    /* Smaller font */
+    transition: all 0.2s;
+    color: var(--text-primary);
+}
+
+.token-action-btn:hover:not(:disabled) {
+    opacity: 0.7;
+}
+
+.token-action-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    /* Reduced from 28px */
+    height: 22px;
+}
+
+.token-action-icon svg {
+    width: 100%;
+    height: 100%;
+    stroke: currentColor;
+}
+
+/* History - Pure Lined Style */
+.token-history-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 12px;
+}
+
+.token-history-title {
+    font-size: 13px;
+    /* Reduced from 15px */
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.token-history-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.token-history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    /* Vertical padding only */
+    background: none !important;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+}
+
+.token-history-item:last-child {
+    border-bottom: none;
+}
+
+.token-history-icon {
+    width: 20px;
+    /* Reduced from 24px */
+    height: 20px;
+    background: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
+.token-history-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+}
+
+.token-history-info {
+    flex: 1;
+}
+
+.token-history-type {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.token-history-date {
+    font-size: 10px;
+    color: var(--text-tertiary);
+}
+
+.token-history-amount {
+    text-align: right;
+}
+
+.token-history-value {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+}
+
+.token-history-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-tertiary);
+    font-size: 12px;
+}

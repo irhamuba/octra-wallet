@@ -1,14 +1,18 @@
 /**
  * Storage Utilities for Octra Wallet
  * Handles encrypted wallet storage, multi-wallet management, and settings
+ * 
+ * SECURITY: Storage keys are obfuscated to prevent simple malware
+ * from finding wallet data by searching for obvious patterns
  */
 
+// Obfuscated storage keys - looks like random data to malware
 const STORAGE_KEYS = {
-    WALLETS: 'octra_wallets', // Array of encrypted wallets
-    ACTIVE_WALLET: 'octra_active_wallet', // Index of active wallet
-    SETTINGS: 'octra_settings',
-    TX_HISTORY: 'octra_tx_history',
-    PASSWORD_HASH: 'octra_pw_hash', // Hashed password for verification
+    WALLETS: '_x7f_v2_blob',           // Encrypted wallets (was: octra_wallets)
+    ACTIVE_WALLET: '_x3a_idx',         // Active wallet index (was: octra_active_wallet)
+    SETTINGS: '_x9c_cfg',              // Settings (was: octra_settings)
+    TX_HISTORY: '_x4e_hist',           // Transaction history (was: octra_tx_history)
+    PASSWORD_HASH: '_x2b_auth',        // Password hash (was: octra_pw_hash)
 };
 
 /**
@@ -23,7 +27,8 @@ async function hashPassword(password) {
 }
 
 /**
- * Derive encryption key from password
+ * Derive encryption key from password using PBKDF2
+ * SECURITY: Using 600,000 iterations per NIST SP 800-132 (2023) recommendations
  */
 async function deriveKey(password) {
     const encoder = new TextEncoder();
@@ -38,8 +43,8 @@ async function deriveKey(password) {
     return await crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
-            salt: encoder.encode('octra_wallet_salt_v1'),
-            iterations: 100000,
+            salt: encoder.encode('_x8f_kdf_salt_v2'),  // Obfuscated salt
+            iterations: 600000,  // NIST 2023 recommendation (was 100000)
             hash: 'SHA-256'
         },
         keyMaterial,
@@ -279,7 +284,7 @@ export function clearAllData() {
 // ===== Settings =====
 
 const DEFAULT_SETTINGS = {
-    rpcUrl: 'https://testnet.octra.network',
+    rpcUrl: 'https://octra.network',
     currency: 'USD',
     theme: 'dark',
     autoLockMinutes: 5,

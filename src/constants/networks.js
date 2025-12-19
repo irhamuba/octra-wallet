@@ -6,8 +6,8 @@ export const NETWORKS = {
     testnet: {
         id: 'testnet',
         name: 'Testnet',
-        rpcUrl: 'https://testnet.octra.network',
-        explorerUrl: 'https://explorer.testnet.octra.network',
+        rpcUrl: 'https://octra.network',
+        explorerUrl: 'https://explorer.octra.network',
         chainId: 1,
         symbol: 'OCT',
         isAvailable: true

@@ -424,10 +424,39 @@ export function truncateAddress(address, startChars = 10, endChars = 8) {
 }
 
 /**
- * Format amount with proper decimals
+ * Format amount with proper decimals and thousand separators
+ * Defaults to 2 decimal places as per user preference
  */
-export function formatAmount(amount, decimals = 6) {
-    if (amount === null || amount === undefined) return '0';
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return num.toFixed(decimals);
+export function formatAmount(amount, decimals = 2) {
+    if (amount === null || amount === undefined) return '0.00';
+
+    // Ensure we work with a string to avoid floating point math rounding
+    let str = typeof amount === 'number' ? amount.toString() : amount;
+
+    // Handle scientific notation if present (e.g. 1e-7)
+    if (str.includes('e')) {
+        str = Number(amount).toFixed(20);
+    }
+
+    const parts = str.split('.');
+    let integerPart = parts[0];
+    let fractionalPart = parts[1] || '';
+
+    // Strict truncation: take exactly 'decimals' characters, no rounding
+    fractionalPart = fractionalPart.substring(0, decimals);
+
+    // Pad with zeros if needed
+    while (fractionalPart.length < decimals) {
+        fractionalPart += '0';
+    }
+
+    // Add thousand separators to integer part using Intl
+    try {
+        integerPart = BigInt(integerPart).toLocaleString('en-US');
+    } catch (e) {
+        // Fallback or just standard regex replacement
+        integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    }
+
+    return `${integerPart}.${fractionalPart}`;
 }

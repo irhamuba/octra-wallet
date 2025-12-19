@@ -15,8 +15,9 @@ import {
 import { TokenIcon } from '../../../components/TokenIcon';
 import { getTokensWithBalances, addToken, removeToken } from '../tokenService';
 import { formatAmount, isValidAddress } from '../../../utils/crypto';
+import './TokenManager.css';
 
-export function TokenManager({ wallet, rpcClient, onBack, onTransfer }) {
+export function TokenManager({ wallet, rpcClient, onBack, onTransfer, onTokenClick }) {
     const [tokens, setTokens] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAddToken, setShowAddToken] = useState(false);
@@ -75,15 +76,15 @@ export function TokenManager({ wallet, rpcClient, onBack, onTransfer }) {
     }
 
     return (
-        <div className="animate-fade-in">
-            <div className="flex items-center justify-between mb-xl">
-                <div className="flex items-center gap-md">
+        <div className="token-manager-container animate-fade-in">
+            <div className="token-manager-header">
+                <div className="token-manager-title">
                     <button className="header-icon-btn" onClick={onBack}>
                         <ChevronLeftIcon size={20} />
                     </button>
                     <h2 className="text-lg font-semibold">Tokens</h2>
                 </div>
-                <div className="flex gap-sm">
+                <div className="token-manager-actions">
                     <button
                         className="header-icon-btn"
                         onClick={loadTokens}
@@ -101,9 +102,9 @@ export function TokenManager({ wallet, rpcClient, onBack, onTransfer }) {
             </div>
 
             {loading ? (
-                <div className="flex flex-col items-center justify-center py-3xl">
+                <div className="loading-container">
                     <div className="loading-spinner mb-lg" style={{ width: 40, height: 40 }} />
-                    <p className="text-secondary">Loading tokens...</p>
+                    <p>Loading tokens...</p>
                 </div>
             ) : (
                 <div className="token-list">
@@ -111,7 +112,13 @@ export function TokenManager({ wallet, rpcClient, onBack, onTransfer }) {
                         <div
                             key={token.contractAddress || token.symbol}
                             className="token-item"
-                            onClick={() => !token.isNative && setSelectedToken(token)}
+                            onClick={() => {
+                                if (onTokenClick) {
+                                    onTokenClick(token);
+                                } else if (!token.isNative) {
+                                    setSelectedToken(token);
+                                }
+                            }}
                         >
                             <div className="token-item-icon">
                                 <TokenIcon symbol={token.symbol} logoUrl={token.logoUrl} size={40} />
@@ -122,7 +129,7 @@ export function TokenManager({ wallet, rpcClient, onBack, onTransfer }) {
                             </div>
                             <div className="token-item-balance">
                                 <span className="token-item-amount">
-                                    {formatAmount(token.balance, 4)}
+                                    {formatAmount(token.balance)}
                                 </span>
                                 {!token.isNative && <ChevronRightIcon size={16} className="text-tertiary" />}
                             </div>
@@ -257,7 +264,7 @@ function TokenDetail({ token, onBack, onRemove, onTransfer }) {
             <div className="flex flex-col items-center mb-xl">
                 <TokenIcon symbol={token.symbol} logoUrl={token.logoUrl} size={64} />
                 <h3 className="text-2xl font-bold mt-lg">
-                    {formatAmount(token.balance, 6)} {token.symbol}
+                    {formatAmount(token.balance)} {token.symbol}
                 </h3>
                 <p className="text-secondary">{token.name}</p>
             </div>
