@@ -12,6 +12,7 @@ const STORAGE_KEYS = {
     ACTIVE_WALLET: '_x3a_idx',         // Active wallet index (was: octra_active_wallet)
     SETTINGS: '_x9c_cfg',              // Settings (was: octra_settings)
     TX_HISTORY: '_x4e_hist',           // Transaction history (was: octra_tx_history)
+    PRIVACY_LOGS: '_x5p_logs',         // Privacy transaction logs (new)
     PASSWORD_HASH: '_x2b_auth',        // Password hash (was: octra_pw_hash)
 };
 
@@ -284,6 +285,7 @@ export function clearAllData() {
 // ===== Settings =====
 
 const DEFAULT_SETTINGS = {
+    network: 'testnet',
     rpcUrl: 'https://octra.network',
     currency: 'USD',
     theme: 'dark',
@@ -306,9 +308,10 @@ export function saveSettings(settings) {
 
 // ===== Transaction History =====
 
-export function getTxHistory() {
+export function getTxHistory(network = 'testnet') {
     try {
-        const stored = localStorage.getItem(STORAGE_KEYS.TX_HISTORY);
+        const key = `${STORAGE_KEYS.TX_HISTORY}_${network}`;
+        const stored = localStorage.getItem(key);
         if (!stored) return [];
         return JSON.parse(stored);
     } catch {
@@ -316,15 +319,104 @@ export function getTxHistory() {
     }
 }
 
-export function addToTxHistory(tx) {
-    const history = getTxHistory();
+export function addToTxHistory(tx, network = 'testnet') {
+    const history = getTxHistory(network);
     history.unshift({
         ...tx,
         timestamp: Date.now()
     });
     // Keep only last 100 transactions
     const trimmed = history.slice(0, 100);
-    localStorage.setItem(STORAGE_KEYS.TX_HISTORY, JSON.stringify(trimmed));
+    const key = `${STORAGE_KEYS.TX_HISTORY}_${network}`;
+    localStorage.setItem(key, JSON.stringify(trimmed));
+}
+
+// ===== Privacy Transaction Logs =====
+
+/**
+ * Store privacy transaction status with encryption
+ * SECURITY: Privacy logs contain sensitive shielded balance info - must be encrypted!
+ */
+export async function savePrivacyTransaction(hash, type, details = {}, password = null) {
+    try {
+        // Load existing encrypted logs
+        const stored = localStorage.getItem(STORAGE_KEYS.PRIVACY_LOGS);
+        let logs = {};
+
+        if (stored) {
+            try {
+                logs = await decryptData(stored, password);
+            } catch (e) {
+                // If decryption fails, start fresh (might be first time or password changed)
+                console.warn('Could not decrypt existing privacy logs, creating new');
+                logs = {};
+            }
+        }
+
+        // Add new log
+        logs[hash] = { type, timestamp: Date.now(), ...details };
+
+        // Encrypt and save if password available
+        if (password) {
+            const encrypted = await encryptData(logs, password);
+            localStorage.setItem(STORAGE_KEYS.PRIVACY_LOGS, encrypted);
+        } else {
+            // Fallback: store unencrypted (backward compat, but less secure)
+            console.warn('⚠️ Privacy log stored unencrypted - password recommended');
+            localStorage.setItem(STORAGE_KEYS.PRIVACY_LOGS, JSON.stringify(logs));
+        }
+    } catch (e) {
+        console.error('Failed to save privacy log', e);
+    }
+}
+
+/**
+ * Get privacy transaction with decryption
+ */
+export async function getPrivacyTransaction(hash, password = null) {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.PRIVACY_LOGS);
+        if (!stored) return null;
+
+        let logs = {};
+        if (password) {
+            try {
+                logs = await decryptData(stored, password);
+            } catch {
+                // Try plain JSON fallback
+                logs = JSON.parse(stored);
+            }
+        } else {
+            logs = JSON.parse(stored);
+        }
+        return logs[hash] || null;
+    } catch (e) {
+        console.error('Failed to get privacy log', e);
+        return null;
+    }
+}
+
+/**
+ * Get all privacy transactions (for display)
+ */
+export async function getAllPrivacyTransactions(password = null) {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEYS.PRIVACY_LOGS);
+        if (!stored) return {};
+
+        if (password) {
+            try {
+                return await decryptData(stored, password);
+            } catch {
+                return JSON.parse(stored);
+            }
+        } else {
+            return JSON.parse(stored);
+        }
+    } catch (e) {
+        console.error('Failed to get privacy logs', e);
+        return {};
+    }
 }
 
 // ===== Export/Import =====

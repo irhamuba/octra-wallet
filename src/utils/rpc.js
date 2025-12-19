@@ -5,8 +5,15 @@
 
 // Use proxy in development to bypass CORS
 const isDev = import.meta.env.DEV;
-const DEFAULT_RPC = isDev ? '/api' : 'https://octra.network';
-const ACTUAL_RPC = 'https://octra.network';
+
+// Network RPC URLs
+export const RPC_URLS = {
+    mainnet: '', // Mainnet coming soon
+    testnet: 'https://octra.network',
+};
+
+const DEFAULT_RPC = isDev ? '/api' : RPC_URLS.testnet;
+const ACTUAL_RPC = RPC_URLS.mainnet;
 
 class RPCClient {
     constructor(rpcUrl = DEFAULT_RPC) {

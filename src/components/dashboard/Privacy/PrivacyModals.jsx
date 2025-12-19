@@ -1,5 +1,16 @@
 import { useState } from 'react';
 import { formatAmount } from '../../../utils/crypto';
+import {
+    ShieldIcon,
+    UnshieldIcon,
+    PrivateTransferIcon,
+    ClaimIcon,
+    CloseIcon,
+    PublicIcon,
+    LockIcon,
+    AlertIcon,
+    InfoIcon
+} from '../../shared/Icons';
 
 /**
  * Shield/Unshield Modal
@@ -18,7 +29,7 @@ export function ShieldModal({ isOpen, onClose, mode, balance, encryptedBalance, 
     const description = isShield
         ? 'Convert public balance to encrypted balance. Your funds will be hidden from public view.'
         : 'Convert encrypted balance to public balance. Your funds will become visible on-chain.';
-    const icon = isShield ? '🛡️' : '👁️';
+    const IconComponent = isShield ? ShieldIcon : UnshieldIcon;
 
     const handleMax = () => {
         setAmount(String(maxAmount));
@@ -47,8 +58,13 @@ export function ShieldModal({ isOpen, onClose, mode, balance, encryptedBalance, 
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal shield-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">{icon} {title}</h3>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <div className="flex items-center gap-sm">
+                        <IconComponent size={20} className={isShield ? 'text-accent' : 'text-secondary'} />
+                        <h3 className="modal-title">{title}</h3>
+                    </div>
+                    <button className="modal-close" onClick={onClose}>
+                        <CloseIcon size={20} />
+                    </button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -96,7 +112,9 @@ export function ShieldModal({ isOpen, onClose, mode, balance, encryptedBalance, 
                             </div>
                             <div className="shield-preview-balances">
                                 <div className="shield-preview-item">
-                                    <span className="preview-icon">👁️</span>
+                                    <span className="preview-icon">
+                                        <PublicIcon size={14} />
+                                    </span>
                                     <span className="preview-label">Public</span>
                                     <span className="preview-value">
                                         {formatAmount(
@@ -107,7 +125,9 @@ export function ShieldModal({ isOpen, onClose, mode, balance, encryptedBalance, 
                                     </span>
                                 </div>
                                 <div className="shield-preview-item shielded">
-                                    <span className="preview-icon">🛡️</span>
+                                    <span className="preview-icon">
+                                        <ShieldIcon size={14} />
+                                    </span>
                                     <span className="preview-label">Shielded</span>
                                     <span className="preview-value">
                                         {formatAmount(
@@ -138,7 +158,7 @@ export function ShieldModal({ isOpen, onClose, mode, balance, encryptedBalance, 
                             {isLoading ? (
                                 <span className="loading-spinner" style={{ width: 16, height: 16 }} />
                             ) : (
-                                `${icon} ${title}`
+                                title
                             )}
                         </button>
                     </div>
@@ -206,8 +226,13 @@ export function PrivateTransferModal({ isOpen, onClose, encryptedBalance, onSubm
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal private-transfer-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">🔒 Private Transfer</h3>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <div className="flex items-center gap-sm">
+                        <PrivateTransferIcon size={20} className="text-accent" />
+                        <h3 className="modal-title">Private Transfer</h3>
+                    </div>
+                    <button className="modal-close" onClick={onClose}>
+                        <CloseIcon size={20} />
+                    </button>
                 </div>
 
                 <div className="modal-body">
@@ -215,7 +240,9 @@ export function PrivateTransferModal({ isOpen, onClose, encryptedBalance, onSubm
                         <>
                             <div className="private-transfer-info">
                                 <div className="info-badge">
-                                    <span className="info-icon">🔐</span>
+                                    <span className="info-icon">
+                                        <InfoIcon size={16} />
+                                    </span>
                                     <span className="info-text">
                                         Amount will be hidden on-chain using FHE encryption
                                     </span>
@@ -273,7 +300,9 @@ export function PrivateTransferModal({ isOpen, onClose, encryptedBalance, onSubm
                         <>
                             <div className="confirm-card">
                                 <div className="confirm-header">
-                                    <span className="confirm-icon">🔒</span>
+                                    <span className="confirm-icon">
+                                        <LockIcon size={20} />
+                                    </span>
                                     <span className="confirm-title">Confirm Private Transfer</span>
                                 </div>
 
@@ -292,14 +321,16 @@ export function PrivateTransferModal({ isOpen, onClose, encryptedBalance, onSubm
                                     </div>
                                     <div className="confirm-row">
                                         <span className="confirm-label">Privacy</span>
-                                        <span className="confirm-value privacy">
-                                            🔐 Hidden on-chain
+                                        <span className="confirm-value privacy flex items-center gap-xs">
+                                            <LockIcon size={14} /> Hidden on-chain
                                         </span>
                                     </div>
                                 </div>
 
                                 <div className="confirm-warning">
-                                    <span className="warning-icon">⚠️</span>
+                                    <span className="warning-icon">
+                                        <AlertIcon size={16} />
+                                    </span>
                                     <span className="warning-text">
                                         Recipient must claim this transfer to receive funds
                                     </span>
@@ -349,7 +380,7 @@ export function PrivateTransferModal({ isOpen, onClose, encryptedBalance, onSubm
                                 {isLoading ? (
                                     <span className="loading-spinner" style={{ width: 16, height: 16 }} />
                                 ) : (
-                                    '🔒 Send Privately'
+                                    'Send Privately'
                                 )}
                             </button>
                         </>
@@ -382,8 +413,13 @@ export function ClaimTransfersModal({ isOpen, onClose, pendingTransfers, onClaim
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal claim-modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h3 className="modal-title">📥 Pending Transfers</h3>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <div className="flex items-center gap-sm">
+                        <ClaimIcon size={20} className="text-secondary" />
+                        <h3 className="modal-title">Pending Transfers</h3>
+                    </div>
+                    <button className="modal-close" onClick={onClose}>
+                        <CloseIcon size={20} />
+                    </button>
                 </div>
 
                 <div className="modal-body">
@@ -394,7 +430,9 @@ export function ClaimTransfersModal({ isOpen, onClose, pendingTransfers, onClaim
                         </div>
                     ) : pendingTransfers.length === 0 ? (
                         <div className="empty-state">
-                            <div className="empty-state-icon">📭</div>
+                            <div className="empty-state-icon">
+                                <ClaimIcon size={40} className="opacity-20" />
+                            </div>
                             <p>No pending transfers</p>
                             <p className="text-tertiary text-xs">
                                 Private transfers sent to you will appear here
@@ -408,8 +446,8 @@ export function ClaimTransfersModal({ isOpen, onClose, pendingTransfers, onClaim
                                         <div className="transfer-from">
                                             From: {transfer.from?.slice(0, 8)}...{transfer.from?.slice(-6)}
                                         </div>
-                                        <div className="transfer-amount">
-                                            🔐 Encrypted Amount
+                                        <div className="transfer-amount flex items-center gap-xs">
+                                            <LockIcon size={12} /> Encrypted Amount
                                         </div>
                                     </div>
                                     <button

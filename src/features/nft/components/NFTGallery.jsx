@@ -9,7 +9,7 @@ import {
     CloseIcon,
     SendIcon,
     RefreshIcon
-} from '../../../components/Icons';
+} from '../../../components/shared/Icons';
 import { fetchNFTs, parseNFTMetadata } from '../nftService';
 import { truncateAddress } from '../../../utils/crypto';
 

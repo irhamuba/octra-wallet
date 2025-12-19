@@ -9,7 +9,7 @@ import {
     ArrowUpRightIcon,
     ArrowDownLeftIcon,
     HistoryIcon
-} from '../../../components/Icons';
+} from '../../../components/shared/Icons';
 import { TX_FILTERS, filterTransactions, getPendingTransactions, mergeTransactions } from '../historyService';
 import { truncateAddress, formatAmount } from '../../../utils/crypto';
 

@@ -15,6 +15,7 @@
 
 import { getRpcClient } from '../utils/rpc';
 import { base64ToBuffer, bufferToBase64 } from '../utils/crypto';
+import { savePrivacyTransaction } from '../utils/storage';
 import nacl from 'tweetnacl';
 
 /**
@@ -261,6 +262,7 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
+                savePrivacyTransaction(result.tx_hash, 'shield', { amount });
                 return { success: true, txHash: result.tx_hash };
             }
 
@@ -319,6 +321,7 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
+                savePrivacyTransaction(result.tx_hash, 'unshield', { amount });
                 return { success: true, txHash: result.tx_hash };
             }
 
@@ -408,6 +411,7 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
+                savePrivacyTransaction(result.tx_hash, 'private', { amount, to });
                 return { success: true, txHash: result.tx_hash };
             }
 
@@ -477,6 +481,7 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
+                savePrivacyTransaction(result.tx_hash, 'claim', { transferId });
                 return { success: true, txHash: result.tx_hash };
             }
 

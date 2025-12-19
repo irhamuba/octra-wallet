@@ -1,5 +1,5 @@
 import { formatAmount } from '../../../utils/crypto';
-import { TokenIcon } from '../../TokenIcon';
+import { TokenIcon } from '../../shared/TokenIcon';
 import { SendIcon, ReceiveIcon, SwapIcon } from './TokenDetailIcons';
 import './TokenDetailView.css';
 

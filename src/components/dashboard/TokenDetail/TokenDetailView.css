@@ -145,6 +145,12 @@
     opacity: 0.7;
 }
 
+.token-action-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .token-action-icon {
     display: flex;
     align-items: center;

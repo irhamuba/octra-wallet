@@ -1,0 +1,559 @@
+import { useState, useEffect } from 'react';
+import { isValidAddress, formatAmount, truncateAddress } from '../../../utils/crypto';
+import { getRpcClient } from '../../../utils/rpc';
+import { addToTxHistory } from '../../../utils/storage';
+import { keyringService } from '../../../services/KeyringService';
+import { ocs01Manager } from '../../../services/OCS01TokenService';
+import { getFriendlyErrorMessage } from '../../../utils/errorMessages';
+import {
+    ChevronLeftIcon,
+    OctraLogo,
+    CheckIcon,
+    CloseIcon,
+    AlertIcon
+} from '../../shared/Icons';
+import { TokenIcon } from '../../shared/TokenIcon';
+import { TokenSelectView } from '../TokenSelect/TokenSelectView';
+import { ConfirmTransactionModal } from '../../shared/ConfirmTransactionModal';
+import './SendView.css';
+
+export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, onLock, initialToken, allTokens: tokensFromParent }) {
+    const [step, setStep] = useState('select'); // 'select' | 'form' | 'confirm' | 'sending' | 'success' | 'error'
+    const [selectedToken, setSelectedToken] = useState(null);
+    const [tokenBalance, setTokenBalance] = useState(balance);
+    const [allTokens, setAllTokens] = useState([]);
+    const [recipient, setRecipient] = useState('');
+    const [amount, setAmount] = useState('');
+    const [error, setError] = useState('');
+    const [txHash, setTxHash] = useState('');
+    const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+
+    // Fee state - automatically use RPC fee
+    const [autoFee, setAutoFee] = useState(0.003); // Default fallback
+    const [isLoadingFee, setIsLoadingFee] = useState(false);
+
+    // Confirmation modal state
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // Transaction polling state
+    const [txStatus, setTxStatus] = useState(null); // 'pending' | 'confirmed' | 'failed'
+
+    // Use tokens from parent (no fetching needed - instant!)
+    useEffect(() => {
+        if (tokensFromParent && tokensFromParent.length > 0) {
+            setAllTokens(tokensFromParent);
+        }
+    }, [tokensFromParent]);
+
+    const fee = autoFee;
+    const total = parseFloat(amount || 0) + fee;
+    const isValid = recipient && isValidAddress(recipient) && amount && parseFloat(amount) > 0 && total <= tokenBalance;
+
+    // Low balance warning (less than 0.001 OCT remaining after transaction)
+    const remainingBalance = tokenBalance - total;
+    const hasLowBalance = selectedToken?.isNative && remainingBalance < 0.001 && remainingBalance >= 0;
+
+    const handleSelectToken = async (token) => {
+        setSelectedToken(token);
+
+        // Cache management
+        const tokenKey = token.isNative ? token.symbol : token.contractAddress;
+        const cachedBalance = localStorage.getItem(`balance_${tokenKey}_${wallet?.address}`);
+        if (cachedBalance) {
+            setTokenBalance(parseFloat(cachedBalance));
+        }
+
+        setIsLoadingBalance(true);
+        setIsLoadingFee(true);
+        setStep('form');
+
+        try {
+            const rpcClient = getRpcClient();
+
+            if (token.isNative) {
+                // Fetch fresh native balance in background
+                const data = await rpcClient.getBalance(wallet.address);
+                setTokenBalance(data.balance);
+                localStorage.setItem(`balance_${token.symbol}_${wallet?.address}`, data.balance.toString());
+            } else if (token.isOCS01) {
+                // Fetch OCS01 balance
+                const contract = ocs01Manager.getContract(token.contractAddress);
+                const result = await contract.getCredits(wallet.address, wallet.address);
+                if (result.success) {
+                    const b = parseFloat(result.result) || 0;
+                    setTokenBalance(b);
+                    localStorage.setItem(`balance_${token.contractAddress}_${wallet?.address}`, b.toString());
+                }
+            }
+
+            // Fetch fee estimate - use medium as auto fee
+            const fees = await rpcClient.getFeeEstimate(1);
+            setAutoFee(Math.max(fees.medium, 0.003)); // Use medium speed as automatic
+        } catch (err) {
+            console.error('Failed to fetch data:', err);
+        } finally {
+            setIsLoadingBalance(false);
+            setIsLoadingFee(false);
+        }
+    };
+
+    // Move to next step immediately
+    useEffect(() => {
+        if (initialToken) {
+            handleSelectToken(initialToken);
+        }
+    }, [initialToken]);
+
+    // Update fee estimate when amount changes
+    useEffect(() => {
+        const updateFee = async () => {
+            if (amount && parseFloat(amount) > 0) {
+                setIsLoadingFee(true);
+                try {
+                    const rpcClient = getRpcClient();
+                    const fees = await rpcClient.getFeeEstimate(parseFloat(amount));
+                    setAutoFee(Math.max(fees.medium, 0.003)); // Auto use medium
+                } catch (err) {
+                    console.error('Failed to update fee:', err);
+                    setAutoFee(0.003); // Fallback
+                }
+                setIsLoadingFee(false);
+            }
+        };
+
+        const debounce = setTimeout(updateFee, 500);
+        return () => clearTimeout(debounce);
+    }, [amount]);
+
+    const handleSendClick = () => {
+        // Validate before showing modal
+        if (!isValidAddress(recipient)) {
+            setError('Invalid recipient address');
+            return;
+        }
+        if (parseFloat(amount) <= 0) {
+            setError('Invalid amount');
+            return;
+        }
+        if (total > tokenBalance) {
+            setError('Insufficient balance');
+            return;
+        }
+        setError('');
+        // Show confirmation modal instead of going directly to confirm step
+        setShowConfirmModal(true);
+    };
+
+    const pollTransactionStatus = async (txHash) => {
+        const rpcClient = getRpcClient();
+        let attempts = 0;
+        const maxAttempts = 60; // 60 seconds max (testnet can be slow)
+
+        setTxStatus('pending');
+
+        const poll = async () => {
+            try {
+                const txData = await rpcClient.getTransaction(txHash);
+
+                console.log(`[Polling ${attempts + 1}/${maxAttempts}]`, txData);
+
+                if (txData && txData.confirmed) {
+                    setTxStatus('confirmed');
+                    onRefresh(); // Refresh balance when confirmed
+                    return;
+                }
+
+                attempts++;
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 1000); // Poll every second
+                } else {
+                    // Timeout - stop polling but don't show error
+                    console.log('Polling timeout - transaction may still be pending');
+                    setTxStatus('timeout');
+                }
+            } catch (err) {
+                console.log(`[Polling error ${attempts + 1}]`, err.message);
+                // Transaction might not be visible yet, keep polling
+                attempts++;
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 1000);
+                } else {
+                    setTxStatus('timeout');
+                }
+            }
+        };
+
+        // Start polling after 2 seconds
+        setTimeout(poll, 2000);
+    };
+
+    const handleConfirmSend = async () => {
+        setShowConfirmModal(false);
+        setStep('sending');
+        setError('');
+
+        try {
+            const rpcClient = getRpcClient();
+
+            // Get fresh nonce
+            const data = await rpcClient.getBalance(wallet.address);
+            let currentNonce = data.nonce;
+
+            // Check for pending transactions
+            const staged = await rpcClient.getStagedTransactions();
+            const ourStaged = staged.filter(tx => tx.from === wallet.address);
+            const maxNonce = ourStaged.length > 0
+                ? Math.max(currentNonce, ...ourStaged.map(tx => parseInt(tx.nonce)))
+                : currentNonce;
+
+            let result;
+
+            if (selectedToken.isNative) {
+                // SECURITY: Use KeyringService for signing native tx
+                const tx = await keyringService.signTransaction(wallet.address, {
+                    to: recipient,
+                    amount: parseFloat(amount),
+                    nonce: maxNonce + 1,
+                    message: null,
+                    fee: fee
+                });
+                result = await rpcClient.sendTransaction(tx);
+            } else if (selectedToken.isOCS01) {
+                // OCS01 Contract Transfer
+                const contract = ocs01Manager.getContract(selectedToken.contractAddress);
+                const amountRaw = Math.floor(parseFloat(amount) * 1_000_000);
+                const callResult = await contract.transfer(recipient, amountRaw, wallet.address);
+
+                if (!callResult.success) {
+                    throw new Error(callResult.error || 'Contract transfer failed');
+                }
+                result = { txHash: callResult.txHash };
+            }
+
+            // Add to local history
+            addToTxHistory({
+                hash: result.txHash,
+                type: 'out',
+                amount: parseFloat(amount),
+                symbol: selectedToken.symbol,
+                address: recipient,
+                status: 'pending'
+            }, settings?.network || 'testnet');
+
+            setTxHash(result.txHash);
+            setStep('success');
+
+            // Start polling for transaction status
+            pollTransactionStatus(result.txHash);
+
+            onRefresh();
+        } catch (err) {
+            console.error('Transaction error:', err);
+            if (err.message && err.message.includes('Keyring is locked') && onLock) {
+                onLock();
+                return;
+            }
+            // Use friendly error message
+            setError(getFriendlyErrorMessage(err));
+            setStep('error');
+        }
+    };
+
+    const handleReset = () => {
+        setSelectedToken(null);
+        setRecipient('');
+        setAmount('');
+        setStep('select');
+        setError('');
+        setTxHash('');
+    };
+
+    return (
+        <div className="animate-fade-in">
+            {/* Step 1: Select Token */}
+            {step === 'select' && (
+                <TokenSelectView
+                    tokens={allTokens}
+                    onSelect={handleSelectToken}
+                    onBack={onBack}
+                />
+            )}
+
+            {/* Step 2: Enter Amount & Address */}
+            {step === 'form' && (
+                <>
+                    <div className="flex items-center gap-md mb-xl">
+                        <button className="header-icon-btn" onClick={() => setStep('select')}>
+                            <ChevronLeftIcon size={20} />
+                        </button>
+                        <h2 className="text-lg font-semibold">Send {selectedToken?.symbol}</h2>
+                    </div>
+
+                    {/* Token Balance Display */}
+                    <div className="send-balance-card mb-lg">
+                        <div className="send-balance-icon">
+                            <TokenIcon
+                                symbol={selectedToken?.symbol}
+                                logoUrl={selectedToken?.logoUrl}
+                                size={24}
+                            />
+                        </div>
+                        <div className="send-balance-info">
+                            <span className="text-secondary text-xs">Available Balance</span>
+                            <span className="text-lg font-bold">
+                                {isLoadingBalance ? '...' : formatAmount(tokenBalance)} {selectedToken?.symbol}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Amount</label>
+                        <div className="relative">
+                            <input
+                                type="number"
+                                className="input input-lg"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                placeholder="0.00"
+                                min="0"
+                                step="0.000001"
+                                style={{ paddingRight: '80px' }}
+                            />
+                            <button
+                                className="send-max-btn"
+                                onClick={() => setAmount(Math.max(0, tokenBalance - fee).toFixed(6))}
+                            >
+                                MAX
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">Recipient Address</label>
+                        <input
+                            type="text"
+                            className={`input input-mono ${recipient && !isValidAddress(recipient) ? 'input-error' : ''}`}
+                            value={recipient}
+                            onChange={(e) => setRecipient(e.target.value)}
+                            placeholder="oct..."
+                        />
+                        {recipient && !isValidAddress(recipient) && (
+                            <p className="form-error">Invalid Octra address</p>
+                        )}
+                    </div>
+
+
+                    {parseFloat(amount) > 0 && (
+                        <div className="card mb-lg">
+                            <div className="confirm-row">
+                                <span className="confirm-label">Amount</span>
+                                <span className="confirm-value">{formatAmount(parseFloat(amount))} {selectedToken?.symbol}</span>
+                            </div>
+                            <div className="confirm-row">
+                                <span className="confirm-label">Network Fee</span>
+                                <span className="confirm-value">{formatAmount(fee)} {selectedToken?.symbol}</span>
+                            </div>
+                            <div className="confirm-row confirm-row-total">
+                                <span className="confirm-label">Total</span>
+                                <span className="confirm-value font-bold">{formatAmount(total)} {selectedToken?.symbol}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Low Balance Warning */}
+                    {hasLowBalance && (
+                        <div className="card mb-lg" style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning)' }}>
+                            <div className="flex items-center gap-md">
+                                <AlertIcon size={18} className="text-warning" />
+                                <p className="text-sm text-warning">
+                                    <strong>Low Balance:</strong> You'll have less than 0.001 OCT remaining. Make sure to keep some for future fees.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {error && <p className="text-error text-sm mb-lg">{error}</p>}
+
+                    <button
+                        className="btn btn-primary btn-lg btn-full"
+                        onClick={handleSendClick}
+                        disabled={!isValid}
+                    >
+                        Review Transaction
+                    </button>
+                </>
+            )}
+
+            {/* Step 3: Confirm & Sign */}
+            {step === 'confirm' && (
+                <>
+                    <div className="flex items-center gap-md mb-xl">
+                        <button className="header-icon-btn" onClick={() => setStep('form')}>
+                            <ChevronLeftIcon size={20} />
+                        </button>
+                        <h2 className="text-lg font-semibold">Confirm & Sign</h2>
+                    </div>
+
+                    <div className="text-center mb-xl">
+                        <p className="text-secondary text-sm mb-sm">You're sending</p>
+                        <p className="confirm-amount-large">{amount} {selectedToken?.symbol}</p>
+                    </div>
+
+                    <div className="confirm-card">
+                        <div className="confirm-row">
+                            <span className="confirm-label">From</span>
+                            <span className="confirm-value text-mono text-sm">{truncateAddress(wallet.address, 8, 6)}</span>
+                        </div>
+                        <div className="confirm-row">
+                            <span className="confirm-label">To</span>
+                            <span className="confirm-value text-mono text-sm">{truncateAddress(recipient, 8, 6)}</span>
+                        </div>
+                        <div className="confirm-row">
+                            <span className="confirm-label">Network Fee</span>
+                            <span className="confirm-value">{fee} {selectedToken?.symbol}</span>
+                        </div>
+                        <div className="confirm-row confirm-row-total">
+                            <span className="confirm-label">Total Amount</span>
+                            <span className="confirm-value font-bold">{formatAmount(total)} {selectedToken?.symbol}</span>
+                        </div>
+                    </div>
+
+                    <div className="sign-info mb-lg">
+                        <p className="text-xs text-secondary text-center">
+                            🔐 Transaction will be signed with your private key
+                        </p>
+                    </div>
+
+                    <div className="flex gap-md">
+                        <button className="btn btn-secondary btn-lg flex-1" onClick={() => setStep('form')}>
+                            Back
+                        </button>
+                        <button className="btn btn-primary btn-lg flex-1" onClick={handleSend}>
+                            Sign & Send
+                        </button>
+                    </div>
+                </>
+            )}
+
+            {/* Sending State */}
+            {step === 'sending' && (
+                <div className="flex flex-col items-center justify-center py-3xl">
+                    <div className="loading-spinner mb-xl" style={{ width: 48, height: 48 }} />
+                    <p className="text-lg font-semibold">Signing & Sending</p>
+                    <p className="text-secondary text-sm mt-sm">Please wait...</p>
+                </div>
+            )}
+
+            {/* Success State */}
+            {step === 'success' && (
+                <div className="flex flex-col items-center justify-center py-3xl text-center animate-fade-in">
+                    <div className="success-checkmark mb-xl">
+                        <CheckIcon size={32} />
+                    </div>
+                    <p className="text-xl font-bold mb-sm">Transaction Sent!</p>
+                    <p className="text-secondary text-sm mb-xl">
+                        Your transaction has been submitted to the network
+                    </p>
+
+                    <div className="card w-full mb-xl">
+                        <div className="flex items-center justify-between mb-sm">
+                            <p className="text-xs text-secondary">Transaction Hash</p>
+                            <button
+                                className="icon-btn-ghost"
+                                style={{ padding: '4px' }}
+                                onClick={() => {
+                                    navigator.clipboard.writeText(txHash);
+                                    // Could show toast here
+                                }}
+                                title="Copy transaction hash"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 0 0 1 2-2h9a2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <a
+                            href={`https://octrascan.io/transactions/${txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-mono text-xs text-accent hover-underline"
+                            style={{
+                                cursor: 'pointer',
+                                textDecoration: 'none',
+                                wordBreak: 'break-all',
+                                display: 'block'
+                            }}
+                        >
+                            {txHash}
+                        </a>
+                        <p className="text-xs text-tertiary mt-xs">
+                            Click to view on OctraScan
+                        </p>
+
+                        {/* Transaction Status */}
+                        {txStatus === 'pending' && (
+                            <div className="mt-md flex items-center justify-center gap-sm text-warning">
+                                <div className="loading-spinner" style={{ width: 14, height: 14 }} />
+                                <span className="text-xs">Waiting for confirmation...</span>
+                            </div>
+                        )}
+                        {txStatus === 'confirmed' && (
+                            <div className="mt-md flex items-center justify-center gap-sm text-success">
+                                <CheckIcon size={14} />
+                                <span className="text-xs font-medium">Confirmed on chain!</span>
+                            </div>
+                        )}
+                        {txStatus === 'timeout' && (
+                            <div className="mt-md text-center">
+                                <div className="flex items-center justify-center gap-sm text-secondary mb-xs">
+                                    <AlertIcon size={14} />
+                                    <span className="text-xs">Testnet is slow - transaction still processing</span>
+                                </div>
+                                <p className="text-xs text-tertiary">
+                                    Check status manually in a few minutes
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                    <button className="btn btn-primary btn-lg" onClick={() => { setStep('form'); setRecipient(''); setAmount(''); setTxStatus(null); setTxHash(''); }}>
+                        Done
+                    </button>
+                </div>
+            )}
+
+            {/* Error State */}
+            {step === 'error' && (
+                <div className="flex flex-col items-center justify-center py-3xl text-center animate-fade-in">
+                    <div className="success-checkmark mb-xl" style={{ background: 'var(--error-bg)', color: 'var(--error)' }}>
+                        <CloseIcon size={32} />
+                    </div>
+                    <p className="text-xl font-bold mb-sm">Transaction Failed</p>
+                    <p className="text-secondary text-sm mb-xl">{error}</p>
+
+                    <div className="flex gap-md w-full">
+                        <button className="btn btn-secondary btn-lg flex-1" onClick={() => { handleReset(); onBack(); }}>
+                            Cancel
+                        </button>
+                        <button className="btn btn-primary btn-lg flex-1" onClick={() => setStep('form')}>
+                            Try Again
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirmation Modal */}
+            <ConfirmTransactionModal
+                isOpen={showConfirmModal}
+                onClose={() => setShowConfirmModal(false)}
+                onConfirm={handleConfirmSend}
+                recipient={recipient}
+                amount={amount}
+                fee={fee}
+                tokenSymbol={selectedToken?.symbol || 'OCT'}
+                isLoading={step === 'sending'}
+            />
+        </div>
+    );
+}

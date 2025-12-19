@@ -1,6 +1,6 @@
 import { formatAmount } from '../../../utils/crypto';
-import { ChevronLeftIcon } from '../../Icons';
-import { TokenIcon } from '../../TokenIcon';
+import { ChevronLeftIcon } from '../../shared/Icons';
+import { TokenIcon } from '../../shared/TokenIcon';
 import './TokenSelect.css';
 
 export function TokenSelectView({ tokens, onSelect, onBack }) {

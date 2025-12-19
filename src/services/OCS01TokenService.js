@@ -21,7 +21,7 @@ export const KNOWN_CONTRACTS = {
             verified: true,
             methods: {
                 view: ['greetCaller', 'getSpec', 'getCredits', 'dotProduct', 'vectorMagnitude', 'power', 'factorial', 'fibonacci', 'gcd', 'isPrime'],
-                call: ['claimToken']
+                call: []
             }
         }
     ],
@@ -181,10 +181,11 @@ class OCS01Contract {
     }
 
     /**
-     * Claim initial token (once per address)
+     * Transfer tokens to another address
      */
-    async claimToken(callerAddress) {
-        return await this.callMethod('claimToken', [], callerAddress);
+    async transfer(to, amount, callerAddress) {
+        // Amount is already in raw units from SendView
+        return await this.callMethod('transfer', [to, String(amount)], callerAddress);
     }
 }
 
@@ -276,18 +277,7 @@ class OCS01Manager {
         return balances;
     }
 
-    /**
-     * Quick claim token from test contract
-     */
-    async claimTestToken(userAddress, network = 'testnet') {
-        const contracts = this.getKnownContracts(network);
-        if (contracts.length === 0) {
-            return { success: false, error: 'No known contracts for this network' };
-        }
 
-        const contract = this.getContract(contracts[0].address, network);
-        return await contract.claimToken(userAddress);
-    }
 }
 
 // Singleton instance

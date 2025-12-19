@@ -1,0 +1,466 @@
+/* Dashboard Component Styles */
+
+/* Header Component */
+.wallet-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-lg) var(--space-xl);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+    height: var(--header-height);
+}
+
+.wallet-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.wallet-logo-icon {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wallet-logo-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.header-icon-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.header-icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.header-icon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Address Pill in Header */
+.header-address-pill {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.header-address-pill:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-default);
+}
+
+.address-pill-text {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+/* Wallet Content */
+.wallet-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-xl);
+    padding-bottom: calc(var(--nav-height) + var(--space-xl));
+}
+
+/* Balance Display */
+.balance-container {
+    text-align: center;
+    margin-bottom: var(--space-2xl);
+    padding: var(--space-xl);
+    background: linear-gradient(135deg, var(--bg-card), var(--bg-elevated));
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-subtle);
+}
+
+.balance-label {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: var(--space-sm);
+    font-weight: 600;
+}
+
+.balance-amount {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+    font-family: var(--font-mono);
+    letter-spacing: -1px;
+}
+
+.balance-currency {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-left: var(--space-sm);
+}
+
+/* Address Display */
+.address-display {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--bg-elevated);
+    border-radius: var(--radius-full);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.address-display:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+/* OKX-Style Action Buttons Row */
+.action-buttons-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-md);
+    margin-bottom: var(--space-2xl);
+}
+
+.action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.action-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+}
+
+.action-btn-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: var(--radius-md);
+    color: white;
+}
+
+.action-btn-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Content Tabs (OKX Style) */
+.content-tabs {
+    display: flex;
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.content-tab {
+    padding: var(--space-md) var(--space-lg);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.content-tab:hover {
+    color: var(--text-primary);
+}
+
+.content-tab.active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+}
+
+/* Tab Content */
+.tab-content {
+    animation: fadeIn var(--transition-normal);
+}
+
+/* Bottom Navigation - OKX Style */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--nav-height);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-subtle);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 var(--space-lg);
+    z-index: 100;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: var(--space-sm);
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex: 1;
+    max-width: 80px;
+}
+
+.nav-item:hover {
+    color: var(--text-secondary);
+}
+
+.nav-item.active {
+    color: var(--accent-primary);
+}
+
+.nav-item-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-item-label {
+    font-size: 10px;
+    font-weight: 600;
+}
+
+/* Wallet Switcher */
+.wallet-logo-clickable {
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.wallet-logo-clickable:hover {
+    opacity: 0.8;
+}
+
+.wallet-switcher-dropdown {
+    position: absolute;
+    top: calc(var(--header-height) - 8px);
+    left: var(--space-xl);
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    min-width: 280px;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.wallet-switcher-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.wallet-switcher-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.wallet-switcher-list {
+    padding: var(--space-sm);
+}
+
+.wallet-switcher-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.wallet-switcher-item:hover {
+    background: var(--bg-hover);
+}
+
+.wallet-switcher-item.active {
+    background: var(--bg-elevated);
+}
+
+.wallet-switcher-avatar {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.wallet-switcher-item.active .wallet-switcher-avatar {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1.5px solid var(--border-default);
+}
+
+.wallet-switcher-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.wallet-switcher-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.wallet-switcher-address {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+.wallet-switcher-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+}
+
+.rotate-180 {
+    transform: rotate(180deg);
+}
+
+/* Bottom Navigation */
+.wallet-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: var(--space-md) var(--space-lg);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-subtle);
+    height: var(--nav-height);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-lg);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.nav-item:hover {
+    background: var(--bg-hover);
+}
+
+.nav-item.active {
+    background: var(--accent-glow);
+}
+
+.nav-icon {
+    width: 24px;
+    height: 24px;
+    color: var(--text-secondary);
+    transition: color var(--transition-fast);
+}
+
+.nav-item:hover .nav-icon {
+    color: var(--text-primary);
+}
+
+.nav-item.active .nav-icon {
+    color: var(--accent-primary);
+}
+
+.nav-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    transition: color var(--transition-fast);
+}
+
+.nav-item:hover .nav-label {
+    color: var(--text-secondary);
+}
+
+.nav-item.active .nav-label {
+    color: var(--accent-primary);
+}
+
+.nav-item-disabled {
+    opacity: 0.4;
+    cursor: not-allowed !important;
+}
+
+.nav-item-disabled:hover {
+    color: var(--text-tertiary);
+}
+
+.nav-item-disabled:hover .nav-icon {
+    color: var(--text-tertiary);
+}

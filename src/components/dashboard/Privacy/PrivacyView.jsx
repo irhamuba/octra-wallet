@@ -12,8 +12,9 @@ import {
     ShieldIcon,
     UnshieldIcon,
     PrivateTransferIcon,
-    ClaimIcon
-} from '../../Icons';
+    ClaimIcon,
+    RefreshIcon
+} from '../../shared/Icons';
 import './Privacy.css';
 
 export function PrivacyView({ wallet, onBack, showToast }) {
@@ -119,11 +120,11 @@ export function PrivacyView({ wallet, onBack, showToast }) {
                 </button>
                 <h2 className="text-lg font-semibold flex-1">Privacy</h2>
                 <button
-                    className={`header-icon-btn ${isRefreshing ? 'animate-spin' : ''}`}
+                    className="header-icon-btn"
                     onClick={() => fetchPrivacyData()}
                     disabled={isRefreshing}
                 >
-                    ↻
+                    <RefreshIcon size={20} className={isRefreshing ? 'animate-spin' : ''} />
                 </button>
             </div>
 

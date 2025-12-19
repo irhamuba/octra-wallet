@@ -10,7 +10,7 @@ import {
     CheckIcon,
     GlobeIcon,
     KeyIcon
-} from '../../../components/Icons';
+} from '../../../components/shared/Icons';
 import {
     getConnectedDapps,
     disconnectFromDapp,

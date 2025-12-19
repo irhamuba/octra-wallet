@@ -22,7 +22,8 @@
   /* Accent - Subtle cyan for Octra branding */
   --accent-primary: #00D4FF;
   --accent-secondary: #00A3CC;
-  --accent-glow: rgba(0, 212, 255, 0.15);
+  --accent-glow: rgba(0, 212, 255, 0.08);
+  /* Reduced opacity for subtle effect, no neon */
 
   /* Status colors */
   --success: #00C853;
@@ -48,11 +49,12 @@
   --radius-xl: 18px;
   --radius-full: 9999px;
 
-  /* Shadows */
+  /* Shadows - No glow effects */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px var(--accent-glow);
+  --shadow-glow: none;
+  /* Removed glow shadow */
 
   /* Transitions */
   --transition-fast: 0.15s ease;
@@ -325,9 +327,22 @@ body {
   color: var(--text-tertiary);
 }
 
+/* Hide number input spinners (+ and - buttons) */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+  display: none;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .input:focus {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-color: var(--border-default);
+  /* Neutral border, no blue/neon */
 }
 
 .input:disabled {

@@ -1,0 +1,95 @@
+/* Confirm Transaction Modal */
+.confirm-tx-modal {
+    max-width: 340px;
+    /* Match other modals */
+}
+
+.confirm-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: var(--warning-bg);
+    border: 1px solid var(--warning);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-lg);
+}
+
+.confirm-warning svg {
+    color: var(--warning);
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.confirm-warning p {
+    font-size: 11px;
+    color: var(--warning);
+    line-height: 1.4;
+    margin: 0;
+}
+
+.confirm-details {
+    background: var(--bg-elevated);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+}
+
+.confirm-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.confirm-detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.confirm-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.confirm-value {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: right;
+    word-break: break-all;
+}
+
+.confirm-address {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    max-width: 160px;
+    /* Smaller for compact modal */
+}
+
+.confirm-amount {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.confirm-divider {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 12px 0;
+}
+
+.confirm-total {
+    margin-bottom: 0;
+}
+
+.confirm-total .confirm-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.confirm-total .confirm-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}

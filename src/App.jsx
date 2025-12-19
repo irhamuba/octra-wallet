@@ -12,10 +12,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
-import { WelcomeScreen, CreateWalletScreen, ImportWalletScreen } from './components/WelcomeScreen';
-import { Dashboard } from './components/Dashboard';
-import { SettingsScreen } from './components/Settings';
-import { LockScreen, SetupPassword } from './components/LockScreen';
+import { WelcomeScreen, CreateWalletScreen, ImportWalletScreen } from './components/welcome';
+import { Dashboard } from './components/dashboard';
+import { SettingsScreen } from './components/settings';
+import { LockScreen, SetupPassword } from './components/lockscreen';
 
 import {
   hasPassword,
@@ -30,17 +30,26 @@ import {
   saveSettings,
   clearAllData,
   getTxHistory,
-  updateWalletName
+  updateWalletName,
+  getPrivacyTransaction
 } from './utils/storage';
 import { getRpcClient, setRpcUrl } from './utils/rpc';
 import { keyringService } from './services/KeyringService';
+import { ocs01Manager } from './services/OCS01TokenService';
+import { cacheGet, cacheSet, cacheHas } from './utils/cache';
+import { CheckIcon, CloseIcon, InfoIcon } from './components/shared/Icons';
 
 // Toast component
 function Toast({ message, type }) {
-  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+  let IconComponent = InfoIcon;
+  if (type === 'success') IconComponent = CheckIcon;
+  if (type === 'error') IconComponent = CloseIcon;
+
   return (
     <div className={`toast toast-${type}`}>
-      <span className="toast-icon">{icon}</span>
+      <span className="toast-icon">
+        <IconComponent size={14} />
+      </span>
       <span className="toast-message">{message}</span>
     </div>
   );
@@ -63,6 +72,10 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [settings, setSettingsState] = useState(getSettings());
   const [toast, setToast] = useState(null);
+
+  // Shared tokens state with cache (30s TTL)
+  const [allTokens, setAllTokens] = useState([]);
+  const [isLoadingTokens, setIsLoadingTokens] = useState(false);
 
   // Current active wallet
   const wallet = wallets[activeWalletIndex] || null;
@@ -172,10 +185,10 @@ function App() {
     setPassword(enteredPassword);
     setWallets(loadedWallets);
     setActiveWalletIdx(getActiveWalletIndex());
-    setTransactions(getTxHistory());
+    setTransactions(getTxHistory(settings.network || 'testnet'));
     setIsUnlocked(true);
     setView('dashboard');
-  }, []);
+  }, [settings.network]);
 
   // Setup password for new wallet
   const handleSetupPassword = useCallback(async (newPassword) => {
@@ -194,21 +207,108 @@ function App() {
     // Removed success toast - user can see wallet is created
   }, [pendingWallet]);
 
-  // Refresh balance
+  // Fetch all tokens with cache (30s TTL)
+  const fetchAllTokens = useCallback(async () => {
+    if (!wallet?.address) return [];
+
+    const cacheKey = `tokens_${wallet.address}`;
+
+    // Return cached if available
+    if (cacheHas(cacheKey)) {
+      const cached = cacheGet(cacheKey);
+      setAllTokens(cached);
+      return cached;
+    }
+
+    setIsLoadingTokens(true);
+    try {
+      const nativeToken = {
+        symbol: 'OCT',
+        name: 'Octra',
+        balance: balance,
+        isNative: true
+      };
+
+      // Fetch OCS01 tokens
+      const ocs01Balances = await ocs01Manager.getUserTokenBalances(wallet.address);
+      const otherTokens = ocs01Balances.map(t => ({
+        symbol: t.isCustom ? t.contractName : 'OCS01',
+        name: t.contractName || 'OCS01 Token',
+        balance: t.balance,
+        contractAddress: t.contractAddress,
+        isNative: false,
+        isOCS01: true
+      }));
+
+      const tokens = [nativeToken, ...otherTokens];
+
+      // Cache for 30 seconds
+      cacheSet(cacheKey, tokens, 30000);
+      setAllTokens(tokens);
+
+      return tokens;
+    } catch (err) {
+      console.error('Failed to fetch tokens:', err);
+      const fallback = [{ symbol: 'OCT', name: 'Octra', balance: balance, isNative: true }];
+      setAllTokens(fallback);
+      return fallback;
+    } finally {
+      setIsLoadingTokens(false);
+    }
+  }, [wallet, balance]);
+
+  // Refresh balance with cache (10s TTL)
   const refreshBalance = useCallback(async () => {
     if (!wallet?.address) return;
+
+    const cacheKey = `balance_${wallet.address}`;
+
+    // Show cached data first if available
+    if (cacheHas(cacheKey)) {
+      const cached = cacheGet(cacheKey);
+      setBalance(cached.balance);
+      setNonce(cached.nonce);
+      // Don't return - fetch fresh in background
+    }
 
     setIsRefreshing(true);
     try {
       const data = await rpcClient.getBalance(wallet.address);
       setBalance(data.balance);
       setNonce(data.nonce);
+
+      // Cache for 10 seconds
+      cacheSet(cacheKey, data, 10000);
+
+      // Update token balance immediately
+      if (allTokens.length > 0) {
+        const updatedTokens = allTokens.map(t =>
+          t.isNative ? { ...t, balance: data.balance } : t
+        );
+        setAllTokens(updatedTokens);
+      }
     } catch (error) {
       console.error('Failed to fetch balance:', error);
     } finally {
       setIsRefreshing(false);
     }
-  }, [wallet, rpcClient]);
+  }, [wallet, rpcClient, allTokens]);
+
+  // Load tokens on wallet change or balance update
+  useEffect(() => {
+    if (wallet?.address && isUnlocked) {
+      // Update allTokens immediately when balance changes
+      if (allTokens.length > 0) {
+        const updatedTokens = allTokens.map(t =>
+          t.isNative ? { ...t, balance: balance } : t
+        );
+        setAllTokens(updatedTokens);
+      } else {
+        // First load - fetch all tokens
+        fetchAllTokens();
+      }
+    }
+  }, [wallet?.address, isUnlocked, balance]);
 
   // Refresh transactions
   const refreshTransactions = useCallback(async () => {
@@ -223,11 +323,18 @@ function App() {
             try {
               const txData = await rpcClient.getTransaction(ref.hash);
               const parsed = txData.parsed_tx;
-              const isIncoming = parsed.to === wallet.address;
+              // Case insensitive comparison for address
+              const isIncoming = parsed.to.toLowerCase() === wallet.address.toLowerCase();
+              const privacyLog = await getPrivacyTransaction(ref.hash, password);
+              let txType = isIncoming ? 'in' : 'out';
+
+              if (privacyLog) {
+                txType = privacyLog.type;
+              }
 
               return {
                 hash: ref.hash,
-                type: isIncoming ? 'in' : 'out',
+                type: txType,
                 amount: parseFloat(parsed.amount_raw || parsed.amount || 0) / 1_000_000,
                 address: isIncoming ? parsed.from : parsed.to,
                 timestamp: parsed.timestamp * 1000,
@@ -318,11 +425,22 @@ function App() {
   // Update settings
   const handleUpdateSettings = useCallback((newSettings) => {
     const updated = { ...settings, ...newSettings };
+    const previousNetwork = settings?.network;
+    const newNetwork = newSettings?.network;
+
     saveSettings(updated);
     setSettingsState(updated);
 
     if (newSettings.rpcUrl) {
       setRpcUrl(newSettings.rpcUrl);
+    }
+
+    // If network changed, reset balance and transactions
+    if (newNetwork && previousNetwork !== newNetwork) {
+      console.log(`Network changed from ${previousNetwork} to ${newNetwork}`);
+      setBalance(0);
+      setTransactions(getTxHistory(newNetwork));
+      // Data will auto-refresh from useEffect hooks in Dashboard
     }
 
     // Removed settings saved toast
@@ -473,7 +591,9 @@ function App() {
           balance={balance}
           nonce={nonce}
           transactions={transactions}
-          onRefresh={() => { refreshBalance(); refreshTransactions(); }}
+          allTokens={allTokens}
+          isLoadingTokens={isLoadingTokens}
+          onRefresh={() => { refreshBalance(); refreshTransactions(); fetchAllTokens(); }}
           isRefreshing={isRefreshing}
           settings={settings}
           onUpdateSettings={handleUpdateSettings}

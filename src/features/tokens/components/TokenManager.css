@@ -114,3 +114,28 @@
     padding: var(--space-3xl) 0;
     color: var(--text-secondary);
 }
+
+/* Header Icon Button Styles */
+.token-manager-container .header-icon-btn {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.token-manager-container .header-icon-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.token-manager-container .header-icon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

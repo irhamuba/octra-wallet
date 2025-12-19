@@ -11,8 +11,8 @@ import {
     SendIcon,
     RefreshIcon,
     ChevronRightIcon
-} from '../../../components/Icons';
-import { TokenIcon } from '../../../components/TokenIcon';
+} from '../../../components/shared/Icons';
+import { TokenIcon } from '../../../components/shared';
 import { getTokensWithBalances, addToken, removeToken } from '../tokenService';
 import { formatAmount, isValidAddress } from '../../../utils/crypto';
 import './TokenManager.css';
