@@ -51,11 +51,17 @@ cd octra-wallet
 # Install dependencies
 npm install
 
+# (Optional) Configure environment variables
+# Copy .env.example to .env.local and modify if needed
+cp .env.example .env.local
+
 # Start development server
 npm run dev
 ```
 
 The wallet will open at **http://localhost:5174**
+
+**Note:** RPC URL defaults to `https://octra.network`. Override by setting `VITE_RPC_URL` in `.env.local` if needed.
 
 ---
 
@@ -229,10 +235,25 @@ git push origin main
    - **Build Command:** `npm run build`
    - **Output Directory:** `dist`
 
-**Step 3: Deploy**
+**Step 3: Configure Environment Variables** ⚠️ **IMPORTANT**
+1. In Vercel Dashboard → Settings → Environment Variables
+2. Add the following variable:
+   ```
+   Key: VITE_RPC_URL
+   Value: https://octra.network
+   ```
+3. Apply to: Production, Preview, Development
+
+**Step 4: Deploy**
 Click **"Deploy"** - that's it! ✅
 
 Your wallet will be live at: `https://your-project.vercel.app`
+
+**Troubleshooting RPC Connection:**
+- ✅ Verify `VITE_RPC_URL` is set in Vercel env vars
+- ✅ Check browser console for CORS errors
+- ✅ Ensure RPC endpoint (`https://octra.network`) is accessible
+- ✅ Review CSP policy allows RPC domain
 
 ### Configuration Files
 

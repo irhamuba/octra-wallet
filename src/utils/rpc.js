@@ -9,11 +9,13 @@ const isDev = import.meta.env.DEV;
 // Network RPC URLs
 export const RPC_URLS = {
     mainnet: '', // Mainnet coming soon
-    testnet: 'https://octra.network',
+    testnet: import.meta.env.VITE_RPC_URL || 'https://octra.network',
 };
 
+// Development: use Vite proxy to avoid CORS
+// Production: use direct RPC URL from env
 const DEFAULT_RPC = isDev ? '/api' : RPC_URLS.testnet;
-const ACTUAL_RPC = RPC_URLS.mainnet;
+const ACTUAL_RPC = RPC_URLS.testnet;
 
 class RPCClient {
     constructor(rpcUrl = DEFAULT_RPC) {
