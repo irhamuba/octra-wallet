@@ -297,14 +297,13 @@ export function getSettings() {
         const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
         let settings = stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
 
-        // AUTO-MIGRATION: Force proxy for octra.network
-        // This fixes users who have cached direct RPC URL
-        if (settings.rpcUrl === 'https://octra.network' || settings.rpcUrl?.startsWith('https://octra.network')) {
-            const isDev = import.meta.env.DEV;
-            const newRpcUrl = isDev ? '/api' : '/api/rpc';
-            console.log(`🔧 Migrating RPC: ${settings.rpcUrl} → ${newRpcUrl}`);
-            settings.rpcUrl = newRpcUrl;
-            saveSettings(settings); // Save migrated settings
+        // AUTO-MIGRATION: Fix legacy proxy paths to real URL
+        // We now handle proxying internally in rpc.js, so we store the REAL URL
+        if (settings.rpcUrl === '/api' || settings.rpcUrl === '/api/rpc') {
+            const realUrl = import.meta.env.VITE_RPC_URL || 'https://octra.network';
+            console.log(`🔧 Reverting RPC path to URL: ${settings.rpcUrl} → ${realUrl}`);
+            settings.rpcUrl = realUrl;
+            saveSettings(settings);
         }
 
         return settings;
