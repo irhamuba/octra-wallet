@@ -1,3 +1,6 @@
+// Load polyfills first (must be before any other imports that use them)
+import './utils/polyfills.js'
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
