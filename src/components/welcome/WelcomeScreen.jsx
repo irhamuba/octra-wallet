@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import {
-    OctraLogo,
+    UbaLogo,
     PlusIcon,
     ImportIcon,
     ChevronRightIcon,
@@ -25,11 +25,11 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
         <div className="onboarding-container animate-fade-in">
             <div className="onboarding-header">
                 <div className="onboarding-logo">
-                    <OctraLogo size={40} />
+                    <UbaLogo size={40} />
                 </div>
-                <h1 className="onboarding-title">Octra Wallet</h1>
+                <h1 className="onboarding-title">Uba Wallet</h1>
                 <p className="onboarding-subtitle">
-                    Simple, secure, and elegant wallet for the Octra network
+                    Privacy, secure wallet for the Octra network
                 </p>
             </div>
 
@@ -62,7 +62,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
             </div>
 
             <div className="text-center mt-xl">
-                <p className="text-xs text-tertiary">Powered by Octra Network • Testnet</p>
+                <p className="text-xs text-tertiary">Uba Wallet • Testnet</p>
             </div>
         </div>
     );
