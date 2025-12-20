@@ -322,8 +322,8 @@ function NetworkSettings({ settings, onUpdateSettings, onBack }) {
                 // Local RPC can be accessed directly
                 testUrl = rpcUrl;
             } else {
-                // Other custom RPC, try proxy first
-                testUrl = isDev ? '/api' : '/api/rpc';
+                // Other custom RPC, use direct URL
+                testUrl = rpcUrl;
             }
 
             const response = await fetch(`${testUrl}/staging`, {

@@ -25,6 +25,12 @@ class RPCClient {
     }
 
     setRpcUrl(url) {
+        // If already using internal proxy paths, keep them
+        if (url === '/api' || url === '/api/rpc') {
+            this.rpcUrl = url;
+            return;
+        }
+
         // Always use proxy for octra.network to avoid CORS
         if (url === ACTUAL_RPC || url.startsWith('https://octra.network')) {
             this.rpcUrl = isDev ? '/api' : '/api/rpc';
@@ -32,8 +38,8 @@ class RPCClient {
             // Local nodes can be accessed directly
             this.rpcUrl = url;
         } else {
-            // Custom RPC URL - use proxy if production
-            this.rpcUrl = isDev ? '/api' : '/api/rpc';
+            // Custom RPC URL - use directly (must support CORS)
+            this.rpcUrl = url;
         }
     }
 
@@ -69,7 +75,8 @@ class RPCClient {
 
             try {
                 json = text.trim() ? JSON.parse(text) : null;
-            } catch {
+            } catch (e) {
+                console.warn(`[RPC] Invalid JSON from ${path}:`, text.substring(0, 200));
                 json = null;
             }
 
@@ -77,7 +84,8 @@ class RPCClient {
                 status: response.status,
                 text,
                 json,
-                ok: response.ok
+                ok: response.ok,
+                error: !response.ok ? (json?.error || `HTTP ${response.status}`) : undefined
             };
         } catch (error) {
             clearTimeout(timeoutId);
@@ -86,6 +94,7 @@ class RPCClient {
                 return { status: 0, text: 'timeout', json: null, ok: false, error: 'Request timeout' };
             }
 
+            console.error(`[RPC] Connection error to ${path}:`, error);
             return { status: 0, text: error.message, json: null, ok: false, error: error.message };
         }
     }
