@@ -240,12 +240,21 @@ export async function removeWallet(walletId, password) {
 
 /**
  * Update wallet name
+ * Searches by ID first, then by address (for backwards compatibility)
  */
-export async function updateWalletName(walletId, name, password) {
+export async function updateWalletName(walletIdOrAddress, name, password) {
     const wallets = await loadWallets(password);
-    const wallet = wallets.find(w => w.id === walletId);
 
-    if (!wallet) throw new Error('Wallet not found');
+    // Try to find by ID first, then by address
+    let wallet = wallets.find(w => w.id === walletIdOrAddress);
+    if (!wallet) {
+        wallet = wallets.find(w => w.address === walletIdOrAddress);
+    }
+
+    if (!wallet) {
+        console.warn(`[updateWalletName] Wallet not found: ${walletIdOrAddress?.slice(0, 20)}...`);
+        throw new Error('Wallet not found');
+    }
 
     wallet.name = name;
     await saveWallets(wallets, password);

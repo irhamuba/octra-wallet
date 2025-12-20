@@ -516,8 +516,11 @@ function App() {
       const walletToUpdate = wallets[index];
       if (!walletToUpdate) return;
 
+      // Use ID if available, otherwise use address as fallback
+      const identifier = walletToUpdate.id || walletToUpdate.address;
+
       // Update in storage
-      await updateWalletName(walletToUpdate.id, newName, password);
+      await updateWalletName(identifier, newName, password);
 
       // Update state
       const updatedWallets = [...wallets];
