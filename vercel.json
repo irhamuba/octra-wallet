@@ -1,8 +1,12 @@
 {
     "rewrites": [
         {
-            "source": "/api/rpc/(.*)",
-            "destination": "/api/rpc"
+            "source": "/api/rpc/:path*",
+            "destination": "/api/rpc.js"
+        },
+        {
+            "source": "/api/rpc",
+            "destination": "/api/rpc.js"
         },
         {
             "source": "/((?!api/).*)",
