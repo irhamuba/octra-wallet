@@ -62,7 +62,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
             </div>
 
             <div className="text-center mt-xl">
-                <p className="text-xs text-tertiary">Uba Wallet • Testnet</p>
+                <p className="text-xs text-tertiary">Support Octra Network</p>
             </div>
         </div>
     );
