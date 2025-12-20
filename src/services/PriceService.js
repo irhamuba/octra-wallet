@@ -1,156 +1,214 @@
 /**
- * Price Service
- * Fetches cryptocurrency prices - Testnet returns $0, Mainnet uses real API
+ * Price Service - Fetches token prices from CoinGecko API
  */
 
-const COINGECKO_API = 'https://api.coingecko.com/api/v3';
-const CACHE_DURATION = 60000; // 1 minute cache
+const COINGECKO_API_URL = import.meta.env.VITE_COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';
+const COINGECKO_API_KEY = import.meta.env.VITE_COINGECKO_API_KEY;
 
-// Price cache
-let priceCache = {
-    data: {},
-    timestamp: 0
+// Cache for price data (5 min TTL)
+const priceCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Token ID mapping for CoinGecko
+// Add mappings for tokens when they get listed on CoinGecko
+const TOKEN_ID_MAP = {
+    'OCT': null,  // Octra not listed yet
+    'ETH': 'ethereum',
+    'BTC': 'bitcoin',
+    'USDT': 'tether',
+    'USDC': 'usd-coin',
 };
 
 /**
- * Get current price for a token
- * @param {string} tokenSymbol - Token symbol (e.g., 'OCT', 'BTC', 'ETH')
- * @param {string} currency - Fiat currency (default: 'usd')
- * @param {string} network - Network type ('testnet' or 'mainnet')
- * @returns {Promise<number>} Price in specified currency
+ * Get price data for a token
+ * @param {string} symbol - Token symbol (e.g., 'OCT', 'ETH')
+ * @returns {Promise<{price: number, change24h: number, marketCap: number} | null>}
  */
-export async function getTokenPrice(tokenSymbol = 'OCT', currency = 'usd', network = 'testnet') {
+export async function getTokenPrice(symbol) {
+    const coinId = TOKEN_ID_MAP[symbol.toUpperCase()];
+
+    // Token not mapped to CoinGecko
+    if (!coinId) {
+        return null;
+    }
+
+    // Check cache
+    const cacheKey = `price_${coinId}`;
+    const cached = priceCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.data;
+    }
+
     try {
-        // Testnet: Always return $0.00
-        if (network === 'testnet') {
-            return 0;
-        }
-
-        // Mainnet: Fetch real price
-        const now = Date.now();
-        const cacheKey = `${tokenSymbol}_${currency}`;
-
-        // Check cache
-        if (priceCache.data[cacheKey] && (now - priceCache.timestamp) < CACHE_DURATION) {
-            return priceCache.data[cacheKey];
-        }
-
-        // For OCT token on mainnet - use actual API
-        // TODO: Replace with your actual OCT price API endpoint
-        if (tokenSymbol.toLowerCase() === 'oct') {
-            // Example: You can integrate with your price API here
-            // const response = await fetch('YOUR_OCT_PRICE_API');
-            // const data = await response.json();
-            // const price = data.usd;
-
-            // For now, return 0 until real API is integrated
-            console.warn('OCT mainnet price API not configured yet');
-            return 0;
-        }
-
-        // For other tokens, use CoinGecko
-        const coinGeckoId = getCoinGeckoId(tokenSymbol);
-        if (!coinGeckoId) {
-            console.warn(`No CoinGecko ID found for ${tokenSymbol}`);
-            return 0;
+        const headers = {};
+        if (COINGECKO_API_KEY) {
+            headers['x-cg-demo-api-key'] = COINGECKO_API_KEY;
         }
 
         const response = await fetch(
-            `${COINGECKO_API}/simple/price?ids=${coinGeckoId}&vs_currencies=${currency}`,
-            {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            }
+            `${COINGECKO_API_URL}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`,
+            { headers }
         );
 
         if (!response.ok) {
-            throw new Error(`Failed to fetch price: ${response.statusText}`);
+            console.warn(`CoinGecko API error: ${response.status}`);
+            return null;
         }
 
         const data = await response.json();
-        const price = data[coinGeckoId]?.[currency] || 0;
+        const tokenData = data[coinId];
 
-        // Update cache
-        priceCache.data[cacheKey] = price;
-        priceCache.timestamp = now;
+        if (!tokenData) {
+            return null;
+        }
 
-        return price;
+        const priceData = {
+            price: tokenData.usd || 0,
+            change24h: tokenData.usd_24h_change || 0,
+            marketCap: tokenData.usd_market_cap || 0,
+        };
+
+        // Cache the result
+        priceCache.set(cacheKey, {
+            data: priceData,
+            timestamp: Date.now()
+        });
+
+        return priceData;
     } catch (error) {
-        console.error('Error fetching token price:', error);
-        return 0;
+        console.error('Failed to fetch price:', error);
+        return null;
     }
 }
 
 /**
- * Get multiple token prices
- * @param {string[]} tokenSymbols - Array of token symbols
- * @param {string} currency - Fiat currency
- * @param {string} network - Network type
- * @returns {Promise<Object>} Object with symbol: price pairs
+ * Get prices for multiple tokens at once
+ * @param {string[]} symbols - Array of token symbols
+ * @returns {Promise<Map<string, {price: number, change24h: number}>>}
  */
-export async function getMultipleTokenPrices(tokenSymbols, currency = 'usd', network = 'testnet') {
-    const prices = {};
+export async function getMultipleTokenPrices(symbols) {
+    const results = new Map();
 
-    await Promise.all(
-        tokenSymbols.map(async (symbol) => {
-            prices[symbol] = await getTokenPrice(symbol, currency, network);
-        })
-    );
+    // Filter to only tokens with CoinGecko mapping
+    const coinIds = symbols
+        .map(s => ({ symbol: s, coinId: TOKEN_ID_MAP[s.toUpperCase()] }))
+        .filter(item => item.coinId);
 
-    return prices;
+    if (coinIds.length === 0) {
+        return results;
+    }
+
+    try {
+        const headers = {};
+        if (COINGECKO_API_KEY) {
+            headers['x-cg-demo-api-key'] = COINGECKO_API_KEY;
+        }
+
+        const ids = coinIds.map(c => c.coinId).join(',');
+        const response = await fetch(
+            `${COINGECKO_API_URL}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+            { headers }
+        );
+
+        if (!response.ok) {
+            return results;
+        }
+
+        const data = await response.json();
+
+        coinIds.forEach(({ symbol, coinId }) => {
+            const tokenData = data[coinId];
+            if (tokenData) {
+                results.set(symbol, {
+                    price: tokenData.usd || 0,
+                    change24h: tokenData.usd_24h_change || 0,
+                });
+            }
+        });
+
+        return results;
+    } catch (error) {
+        console.error('Failed to fetch multiple prices:', error);
+        return results;
+    }
 }
 
 /**
- * Calculate USD value
- * @param {number} amount - Token amount
- * @param {number} price - Price per token
- * @returns {number} USD value
+ * Format price for display
+ * @param {number} price 
+ * @returns {string}
  */
-export function calculateUsdValue(amount, price) {
-    return amount * price;
+export function formatPrice(price) {
+    if (!price || price === 0) return '--';
+
+    if (price < 0.01) {
+        return `$${price.toFixed(6)}`;
+    } else if (price < 1) {
+        return `$${price.toFixed(4)}`;
+    } else if (price < 1000) {
+        return `$${price.toFixed(2)}`;
+    } else {
+        return `$${price.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+    }
 }
 
 /**
- * Format USD amount
- * @param {number} amount - USD amount
- * @returns {string} Formatted string (e.g., "$1,234.56")
+ * Format percentage change
+ * @param {number} change 
+ * @returns {string}
  */
-export function formatUsd(amount) {
-    if (!amount || isNaN(amount) || amount === 0) return '$0.00';
+export function formatChange(change) {
+    if (change === null || change === undefined) return '--';
 
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(2)}%`;
+}
+
+/**
+ * Check if token has price data available
+ * @param {string} symbol 
+ * @returns {boolean}
+ */
+export function hasPriceData(symbol) {
+    return TOKEN_ID_MAP[symbol.toUpperCase()] !== undefined && TOKEN_ID_MAP[symbol.toUpperCase()] !== null;
+}
+
+/**
+ * Format USD value for display
+ * @param {number} value 
+ * @returns {string}
+ */
+export function formatUsd(value) {
+    if (!value || value === 0 || isNaN(value)) {
+        return '$0.00';
+    }
+
+    return `$${value.toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
-    }).format(amount);
+    })}`;
 }
 
 /**
- * Map token symbols to CoinGecko IDs
- * @param {string} symbol - Token symbol
- * @returns {string|null} CoinGecko ID
+ * Calculate USD value from token amount and price
+ * @param {number|string} amount - Token amount
+ * @param {number} price - Token price in USD
+ * @returns {number}
  */
-function getCoinGeckoId(symbol) {
-    const symbolMap = {
-        'BTC': 'bitcoin',
-        'ETH': 'ethereum',
-        'USDT': 'tether',
-        'USDC': 'usd-coin',
-        'OCT': null // Custom token, configure API separately
-    };
-
-    return symbolMap[symbol.toUpperCase()] || null;
+export function calculateUsdValue(amount, price) {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (!numAmount || !price || isNaN(numAmount) || isNaN(price)) {
+        return 0;
+    }
+    return numAmount * price;
 }
 
-/**
- * Clear price cache
- */
-export function clearPriceCache() {
-    priceCache = {
-        data: {},
-        timestamp: 0
-    };
-}
+export default {
+    getTokenPrice,
+    getMultipleTokenPrices,
+    formatPrice,
+    formatChange,
+    hasPriceData,
+    formatUsd,
+    calculateUsdValue,
+};

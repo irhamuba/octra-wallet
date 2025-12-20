@@ -390,12 +390,12 @@
     transform: rotate(180deg);
 }
 
-/* Bottom Navigation */
+/* Bottom Navigation - Clean Phantom-style */
 .wallet-nav {
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: var(--space-md) var(--space-lg);
+    padding: var(--space-sm) var(--space-md);
     background: var(--bg-secondary);
     border-top: 1px solid var(--border-subtle);
     height: var(--nav-height);
@@ -405,32 +405,56 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--space-xs);
-    padding: var(--space-sm) var(--space-lg);
+    gap: 4px;
+    padding: var(--space-sm) var(--space-md);
     background: transparent;
     border: none;
     border-radius: var(--radius-md);
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+/* Active indicator line */
+.nav-item::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: var(--accent-primary);
+    border-radius: 1px;
+    transform: translateX(-50%);
+    transition: width 0.2s ease;
+}
+
+.nav-item.active::after {
+    width: 24px;
 }
 
 .nav-item:hover {
     background: var(--bg-hover);
 }
 
-.nav-item.active {
-    background: var(--accent-glow);
+.nav-item:active {
+    transform: scale(0.95);
 }
 
 .nav-icon {
-    width: 24px;
-    height: 24px;
-    color: var(--text-secondary);
-    transition: color var(--transition-fast);
+    width: 22px;
+    height: 22px;
+    color: var(--text-tertiary);
+    transition: all 0.2s ease;
 }
 
 .nav-item:hover .nav-icon {
-    color: var(--text-primary);
+    color: var(--text-secondary);
+    transform: translateY(-1px);
+}
+
+.nav-item:active .nav-icon {
+    transform: scale(0.9);
 }
 
 .nav-item.active .nav-icon {
@@ -438,10 +462,10 @@
 }
 
 .nav-label {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     color: var(--text-tertiary);
-    transition: color var(--transition-fast);
+    transition: all 0.2s ease;
 }
 
 .nav-item:hover .nav-label {
@@ -450,6 +474,7 @@
 
 .nav-item.active .nav-label {
     color: var(--accent-primary);
+    font-weight: 600;
 }
 
 .nav-item-disabled {
@@ -458,9 +483,11 @@
 }
 
 .nav-item-disabled:hover {
-    color: var(--text-tertiary);
+    background: transparent;
+    transform: none;
 }
 
 .nav-item-disabled:hover .nav-icon {
     color: var(--text-tertiary);
+    transform: none;
 }

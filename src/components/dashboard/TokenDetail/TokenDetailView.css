@@ -1,252 +1,200 @@
-/* TokenDetailView.css - Nano Compact MK2 (Ultra Slim) */
+/* Token Detail - Minimal No Background */
 
-.token-detail-view {
+.td {
     display: flex;
     flex-direction: column;
     height: 100%;
-    animation: fadeIn 0.3s ease;
-    overflow-y: auto;
-    padding: 0 12px 12px 12px;
+    padding: 12px 16px;
 }
 
-.token-detail-header {
+/* Navigation */
+.td-nav {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 0;
-    margin-bottom: 0;
-    flex-shrink: 0;
+    margin-bottom: 16px;
 }
 
-.back-btn {
+.td-back {
     background: none;
     border: none;
-    color: var(--text-secondary);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: 0;
+}
+
+.td-back:hover {
+    color: var(--text-primary);
+}
+
+.td-nav-title {
     font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 0;
-}
-
-/* Compact Info Section */
-.token-info-card {
-    background: none;
-    border: none;
-    padding: 4px 0;
-    /* Reduced from 12px */
-    margin-bottom: 8px;
-    /* Reduced from 16px */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    box-shadow: none;
-    flex-shrink: 0;
-}
-
-.token-info-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-}
-
-.token-info-name h3 {
-    font-size: 15px;
-    /* Reduced from 18px */
-    margin: 0;
-    font-weight: 600;
-}
-
-.token-info-symbol {
-    color: var(--text-tertiary);
-    font-size: 12px;
-}
-
-.token-balance-section {
-    margin-bottom: 8px;
-}
-
-.token-balance-label {
-    color: var(--text-tertiary);
-    font-size: 10px;
-    /* Smaller */
-    margin-bottom: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.token-balance-amount {
-    font-size: 22px;
-    /* Reduced from 28px */
-    font-weight: 700;
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    letter-spacing: -0.5px;
-}
-
-/* Minimal Dividers */
-.token-price-section {
-    width: 100%;
-    padding-top: 8px;
-    border-top: 1px solid var(--border-subtle);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.token-price-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11px;
-    /* Smaller */
-}
-
-.token-price-label {
+    font-weight: 500;
     color: var(--text-secondary);
 }
 
-.token-price-value {
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-}
-
-/* Actions - No background and no border */
-.token-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    margin: 12px 0 16px 0;
-    /* Reduced margins */
-    flex-shrink: 0;
-}
-
-.token-action-btn {
+/* Hero */
+.td-hero {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-bottom: 8px;
+}
+
+.td-token-name {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+/* Balance */
+.td-balance {
+    display: flex;
+    align-items: baseline;
     justify-content: center;
     gap: 4px;
-    padding: 4px;
-    /* Reduced padding */
-    border: none;
-    background: none;
-    cursor: pointer;
+    margin-bottom: 24px;
+}
+
+.td-balance-amt {
+    font-size: 20px;
     font-weight: 600;
-    font-size: 11px;
-    /* Smaller font */
-    transition: all 0.2s;
+}
+
+.td-balance-sym {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+/* Actions - No background, just icons */
+.td-actions {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.td-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
     color: var(--text-primary);
 }
 
-.token-action-btn:hover:not(:disabled) {
-    opacity: 0.7;
+.td-action:hover:not(:disabled) {
+    opacity: 0.6;
 }
 
-.token-action-btn:disabled {
-    opacity: 0.3;
+.td-action:disabled {
+    opacity: 0.25;
     cursor: not-allowed;
-    pointer-events: none;
 }
 
-.token-action-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.td-action-icon {
+    color: var(--text-secondary);
+}
+
+.td-action-icon svg {
     width: 22px;
-    /* Reduced from 28px */
     height: 22px;
 }
 
-.token-action-icon svg {
-    width: 100%;
-    height: 100%;
-    stroke: currentColor;
-}
-
-/* History - Pure Lined Style */
-.token-history-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    border-top: 1px solid var(--border-subtle);
-    padding-top: 12px;
-}
-
-.token-history-title {
-    font-size: 13px;
-    /* Reduced from 15px */
-    font-weight: 600;
-    margin-bottom: 8px;
-}
-
-.token-history-list {
-    display: flex;
-    flex-direction: column;
-}
-
-.token-history-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 0;
-    /* Vertical padding only */
-    background: none !important;
-    border-bottom: 1px solid var(--border-subtle);
-    border-radius: 0;
-}
-
-.token-history-item:last-child {
-    border-bottom: none;
-}
-
-.token-history-icon {
-    width: 20px;
-    /* Reduced from 24px */
-    height: 20px;
-    background: none !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary);
-}
-
-.token-history-icon svg {
-    width: 14px;
-    height: 14px;
-    stroke-width: 2;
-}
-
-.token-history-info {
-    flex: 1;
-}
-
-.token-history-type {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.token-history-date {
+.td-action span {
     font-size: 10px;
     color: var(--text-tertiary);
 }
 
-.token-history-amount {
-    text-align: right;
+/* Section */
+.td-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
-.token-history-value {
-    font-size: 13px;
-    font-weight: 600;
+.td-section-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+}
+
+/* Empty */
+.td-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 32px 0;
+    color: var(--text-tertiary);
+    font-size: 11px;
+}
+
+/* Transactions */
+.td-txs {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.td-tx {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.td-tx:last-child {
+    border-bottom: none;
+}
+
+.td-tx-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.td-tx-icon.in {
+    color: var(--success);
+}
+
+.td-tx-icon.out {
+    color: var(--text-secondary);
+}
+
+.td-tx-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+.td-tx-info {
+    flex: 1;
+}
+
+.td-tx-type {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.td-tx-date {
+    font-size: 10px;
+    color: var(--text-tertiary);
+}
+
+.td-tx-amt {
+    font-size: 12px;
+    font-weight: 500;
     font-family: var(--font-mono);
 }
 
-.token-history-empty {
-    text-align: center;
-    padding: 20px;
-    color: var(--text-tertiary);
-    font-size: 12px;
+.td-tx-amt.in {
+    color: var(--success);
 }

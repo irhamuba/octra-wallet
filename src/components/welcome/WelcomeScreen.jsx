@@ -16,6 +16,7 @@ import {
     EyeOffIcon,
     CopyIcon,
     LockIcon,
+    AnimatedLockIcon,
     AlertIcon
 } from '../shared/Icons';
 import './WelcomeScreen.css';
@@ -23,18 +24,17 @@ import './WelcomeScreen.css';
 export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
     return (
         <div className="onboarding-container animate-fade-in">
-            <div className="onboarding-header">
+            <div className="onboarding-header animate-slide-up">
                 <div className="onboarding-logo">
                     <UbaLogo size={40} />
                 </div>
-                <h1 className="onboarding-title">Uba Wallet</h1>
-                <p className="onboarding-subtitle">
-                    Privacy, secure wallet for the Octra network
-                </p>
             </div>
 
             <div className="onboarding-content">
-                <button className="onboarding-option" onClick={onCreateWallet}>
+                <button
+                    className="onboarding-option animate-slide-up-delay-1"
+                    onClick={onCreateWallet}
+                >
                     <div className="onboarding-option-icon">
                         <PlusIcon size={24} />
                     </div>
@@ -47,7 +47,10 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
                     <ChevronRightIcon size={20} className="onboarding-option-arrow" />
                 </button>
 
-                <button className="onboarding-option" onClick={onImportWallet}>
+                <button
+                    className="onboarding-option animate-slide-up-delay-2"
+                    onClick={onImportWallet}
+                >
                     <div className="onboarding-option-icon">
                         <ImportIcon size={24} />
                     </div>
@@ -61,7 +64,7 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
                 </button>
             </div>
 
-            <div className="text-center mt-xl">
+            <div className="text-center mt-xl animate-fade-in-delay">
                 <p className="text-xs text-tertiary">Support Octra Network</p>
             </div>
         </div>
@@ -196,11 +199,17 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                     </div>
 
                     <div className="text-center mb-xl">
-                        <div className="setup-icon-container" style={{ margin: '0 auto var(--space-lg)' }}>
-                            <LockIcon size={28} />
+                        <div className="animated-icon-container">
+                            <AnimatedLockIcon
+                                size={56}
+                                isLocked={password.length >= 8 && password === confirmPassword}
+                            />
                         </div>
                         <p className="text-secondary text-sm">
-                            Create a strong password to protect your wallet.
+                            {password.length >= 8 && password === confirmPassword
+                                ? '✓ Password secured!'
+                                : 'Create a strong password to protect your wallet.'
+                            }
                         </p>
                     </div>
 
@@ -266,8 +275,8 @@ export function CreateWalletScreen({ onBack, onComplete }) {
             {/* Step 2: Generating */}
             {step === 2 && (
                 <div className="flex flex-col items-center justify-center h-full">
-                    <div className="loading-spinner mb-lg" style={{ width: 48, height: 48 }} />
-                    <p className="text-secondary">Generating your wallet...</p>
+                    <div className="loading-spinner-large" />
+                    <p className="text-secondary mt-lg">Generating your wallet...</p>
                 </div>
             )}
 
@@ -316,7 +325,7 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                     </button>
 
                     <div className="card mb-lg flex items-center gap-md" style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning)' }}>
-                        <AlertIcon size={20} className="text-warning" />
+                        <AlertIcon size={24} className="text-warning" style={{ flexShrink: 0 }} />
                         <p className="text-sm text-warning">
                             Never share your recovery phrase. Store it securely offline.
                         </p>
@@ -478,11 +487,17 @@ export function ImportWalletScreen({ onBack, onComplete }) {
                     </div>
 
                     <div className="text-center mb-xl">
-                        <div className="setup-icon-container" style={{ margin: '0 auto var(--space-lg)' }}>
-                            <LockIcon size={28} />
+                        <div className="animated-icon-container">
+                            <AnimatedLockIcon
+                                size={56}
+                                isLocked={password.length >= 8 && password === confirmPassword}
+                            />
                         </div>
                         <p className="text-secondary text-sm">
-                            Create a password to protect your imported wallet.
+                            {password.length >= 8 && password === confirmPassword
+                                ? '✓ Password secured!'
+                                : 'Create a password to protect your imported wallet.'
+                            }
                         </p>
                     </div>
 

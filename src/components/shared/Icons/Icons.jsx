@@ -147,6 +147,89 @@ export const LockIcon = ({ size = 24, className = '' }) => (
     </svg>
 );
 
+// Animated Lock Icon - Professional padlock with open/closed state animation
+export const AnimatedLockIcon = ({ size = 48, isLocked = false, className = '' }) => {
+    const lockColor = isLocked ? 'var(--success, #2ecc71)' : 'var(--accent-primary, #00d4ff)';
+
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 64 64"
+            fill="none"
+            className={className}
+
+        >
+            {/* Lock Body - Rounded rectangle */}
+            <rect
+                x="14"
+                y="30"
+                width="36"
+                height="26"
+                rx="4"
+                stroke={lockColor}
+                strokeWidth="3"
+                fill="none"
+                style={{ transition: 'stroke 0.3s ease' }}
+            />
+
+            {/* Keyhole - Circle with stem */}
+            <circle
+                cx="32"
+                cy="41"
+                r="3.5"
+                fill={lockColor}
+                style={{ transition: 'fill 0.3s ease' }}
+            />
+            <path
+                d="M32 44V50"
+                stroke={lockColor}
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                style={{ transition: 'stroke 0.3s ease' }}
+            />
+
+            {/* Shackle - U-shape that slides up when unlocked */}
+            <path
+                d={isLocked
+                    ? "M22 30V20C22 14.4772 26.4772 10 32 10C37.5228 10 42 14.4772 42 20V30"
+                    : "M22 30V20C22 14.4772 26.4772 10 32 10C37.5228 10 42 14.4772 42 20V18"
+                }
+                stroke={lockColor}
+                strokeWidth="3"
+                strokeLinecap="round"
+                fill="none"
+                style={{
+                    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    transform: isLocked ? 'translateY(0)' : 'translateY(-8px)',
+                }}
+            />
+
+            {/* Success checkmark overlay when locked */}
+            {isLocked && (
+                <g style={{
+                    animation: 'checkFadeIn 0.3s ease-out 0.2s both'
+                }}>
+                    <circle
+                        cx="48"
+                        cy="14"
+                        r="8"
+                        fill="var(--success, #2ecc71)"
+                    />
+                    <path
+                        d="M44 14L46.5 17L52 11"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                    />
+                </g>
+            )}
+        </svg>
+    );
+};
+
 export const EyeIcon = ({ size = 24, className = '' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
         <path d="M2 12C2 12 5 5 12 5C19 5 22 12 22 12C22 12 19 19 12 19C5 19 2 12 2 12Z" stroke="currentColor" strokeWidth="2" />

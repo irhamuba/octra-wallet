@@ -3,115 +3,77 @@ import { TokenIcon } from '../../shared/TokenIcon';
 import { SendIcon, ReceiveIcon, SwapIcon } from './TokenDetailIcons';
 import './TokenDetailView.css';
 
-export function TokenDetailView({ token, wallet, onBack, onSend, onReceive, transactions }) {
-    // Filter transactions for this token.
-    const tokenTransactions = transactions?.filter(tx =>
+export function TokenDetailView({ token, onBack, onSend, onReceive, transactions }) {
+    const tokenTxs = transactions?.filter(tx =>
         (token.isNative && !tx.token) || tx.token === token.symbol
     ) || [];
 
     return (
-        <div className="token-detail-view animate-fade-in">
+        <div className="td">
             {/* Header */}
-            <div className="token-detail-header">
-                <button className="back-btn" onClick={onBack}>
-                    ← Back
+            <header className="td-nav">
+                <button className="td-back" onClick={onBack}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M15 18l-6-6 6-6" />
+                    </svg>
                 </button>
-                <div></div>
+                <span className="td-nav-title">{token.symbol}</span>
+                <div style={{ width: 18 }} />
+            </header>
+
+            {/* Token Hero */}
+            <div className="td-hero">
+                <TokenIcon symbol={token.symbol} logoUrl={token.logoUrl} size={48} />
+                <div className="td-token-name">{token.name}</div>
             </div>
 
-            {/* Token Info Card */}
-            <div className="token-info-card">
-                <div className="token-info-header">
-                    <TokenIcon
-                        symbol={token.symbol}
-                        logoUrl={token.logoUrl}
-                        size={32}
-                    />
-                    <div className="token-info-name">
-                        <h3>{token.name}</h3>
-                        <span className="token-info-symbol">{token.symbol}</span>
-                    </div>
-                </div>
-
-                {/* Balance */}
-                <div className="token-balance-section">
-                    <div className="token-balance-label">Balance</div>
-                    <div className="token-balance-amount">
-                        {formatAmount(token.balance)} {token.symbol}
-                    </div>
-                </div>
-
-                {/* Price Info (Placeholder for Testnet) */}
-                <div className="token-price-section">
-                    <div className="token-price-row">
-                        <span className="token-price-label">Price</span>
-                        <span className="token-price-value">--</span>
-                    </div>
-                    <div className="token-price-row">
-                        <span className="token-price-label">24h Change</span>
-                        <span className="token-price-value text-secondary">--</span>
-                    </div>
-                    <div className="text-center mt-sm text-secondary" style={{ fontSize: '10px' }}>
-                        Market data unavailable on Testnet
-                    </div>
-                </div>
+            {/* Balance */}
+            <div className="td-balance">
+                <span className="td-balance-amt">{formatAmount(token.balance)}</span>
+                <span className="td-balance-sym">{token.symbol}</span>
             </div>
 
-            {/* Action Buttons */}
-            <div className="token-actions">
-                <button
-                    className="token-action-btn send"
-                    onClick={() => onSend(token)}
-                >
-                    <span className="token-action-icon"><SendIcon /></span>
+            {/* Actions - OKX/Phantom style */}
+            <div className="td-actions">
+                <button className="td-action" onClick={() => onSend(token)}>
+                    <div className="td-action-icon"><SendIcon /></div>
                     <span>Send</span>
                 </button>
-                <button
-                    className="token-action-btn receive"
-                    onClick={() => onReceive(token)}
-                >
-                    <span className="token-action-icon"><ReceiveIcon /></span>
+                <button className="td-action" onClick={() => onReceive(token)}>
+                    <div className="td-action-icon"><ReceiveIcon /></div>
                     <span>Receive</span>
                 </button>
-                <button
-                    className="token-action-btn swap"
-                    disabled
-                    title="Swap coming soon"
-                >
-                    <span className="token-action-icon"><SwapIcon /></span>
+                <button className="td-action" disabled>
+                    <div className="td-action-icon"><SwapIcon /></div>
                     <span>Swap</span>
                 </button>
             </div>
 
-            {/* Transaction History */}
-            <div className="token-history-section">
-                <h3 className="token-history-title">Traffic History</h3>
-                {tokenTransactions.length === 0 ? (
-                    <div className="token-history-empty">
-                        <span className="empty-icon">📭</span>
-                        <p>No transactions yet</p>
+            {/* Transactions */}
+            <div className="td-section">
+                <div className="td-section-title">Transactions</div>
+                {tokenTxs.length === 0 ? (
+                    <div className="td-empty">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.4">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 6v6l4 2" />
+                        </svg>
+                        <span>No transactions yet</span>
                     </div>
                 ) : (
-                    <div className="token-history-list">
-                        {tokenTransactions.map((tx, index) => (
-                            <div key={index} className="token-history-item">
-                                <div className="token-history-icon">
+                    <div className="td-txs">
+                        {tokenTxs.slice(0, 10).map((tx, i) => (
+                            <div key={i} className="td-tx">
+                                <div className={`td-tx-icon ${tx.type}`}>
                                     {tx.type === 'in' ? <ReceiveIcon /> : <SendIcon />}
                                 </div>
-                                <div className="token-history-info">
-                                    <div className="token-history-type">
-                                        {tx.type === 'in' ? 'Received' : 'Sent'}
-                                    </div>
-                                    <div className="token-history-date">
-                                        {new Date(tx.timestamp).toLocaleString()}
-                                    </div>
+                                <div className="td-tx-info">
+                                    <span className="td-tx-type">{tx.type === 'in' ? 'Received' : 'Sent'}</span>
+                                    <span className="td-tx-date">{new Date(tx.timestamp).toLocaleDateString()}</span>
                                 </div>
-                                <div className="token-history-amount">
-                                    <div className={`token-history-value ${tx.type === 'in' ? 'receive' : 'send'}`}>
-                                        {tx.type === 'in' ? '+' : '-'}{formatAmount(tx.amount)}
-                                    </div>
-                                    <div className="token-history-symbol">{token.symbol}</div>
-                                </div>
+                                <span className={`td-tx-amt ${tx.type}`}>
+                                    {tx.type === 'in' ? '+' : '-'}{formatAmount(tx.amount)}
+                                </span>
                             </div>
                         ))}
                     </div>

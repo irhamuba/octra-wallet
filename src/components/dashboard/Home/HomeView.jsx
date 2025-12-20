@@ -19,8 +19,9 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
     // Fetch OCT price based on network
     useEffect(() => {
         const fetchPrice = async () => {
-            const price = await getTokenPrice('OCT', 'usd', settings?.network || 'testnet');
-            setOctPrice(price);
+            // OCT price not available on testnet/CoinGecko yet
+            const priceData = await getTokenPrice('OCT');
+            setOctPrice(priceData?.price || 0);
         };
         fetchPrice();
         // Refresh price every minute
