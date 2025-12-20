@@ -1,41 +1,45 @@
 /**
- * Vercel Edge Function - RPC Proxy
- * Solves CORS issue by proxying ALL requests to octra.network
+ * Vercel Serverless Function - RPC Proxy
+ * Node.js based - FREE TIER Compatible
+ * 
+ * Handles all /api/rpc/* requests
  */
-
-export const config = {
-    runtime: 'edge',
-};
 
 const RPC_URL = process.env.VITE_RPC_URL || 'https://octra.network';
 
-export default async function handler(request) {
-    const url = new URL(request.url);
+export default async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
 
     // Handle OPTIONS (CORS preflight)
-    if (request.method === 'OPTIONS') {
-        return new Response(null, {
-            status: 204,
-            headers: {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-                'Access-Control-Max-Age': '86400',
-            },
-        });
+    if (req.method === 'OPTIONS') {
+        return res.status(204).end();
     }
 
     try {
-        // Extract path after /api/rpc
-        const rpcPath = url.pathname.replace('/api/rpc', '') || '/';
-        const searchParams = url.searchParams.toString();
-        const targetUrl = `${RPC_URL}${rpcPath}${searchParams ? '?' + searchParams : ''}`;
+        // Extract path from URL
+        // URL: /api/rpc → path: /
+        // URL: /api/rpc/balance/octxxx → path: /balance/octxxx
+        let path = req.url.replace('/api/rpc', '') || '/';
 
-        console.log(`[RPC Proxy] ${request.method} ${targetUrl}`);
+        // Remove query params from path (they'll be added separately)
+        const queryIndex = path.indexOf('?');
+        let queryString = '';
+        if (queryIndex !== -1) {
+            queryString = path.substring(queryIndex);
+            path = path.substring(0, queryIndex);
+        }
 
-        // Prepare request options
+        const targetUrl = `${RPC_URL}${path}${queryString}`;
+
+        console.log(`[RPC Proxy] ${req.method} ${targetUrl}`);
+
+        // Prepare fetch options
         const fetchOptions = {
-            method: request.method,
+            method: req.method,
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
@@ -43,63 +47,43 @@ export default async function handler(request) {
             },
         };
 
-        // Add body for POST/PUT requests
-        if (request.method === 'POST' || request.method === 'PUT') {
-            try {
-                const body = await request.text();
-                if (body) {
-                    fetchOptions.body = body;
-                }
-            } catch (e) {
-                console.error('[RPC Proxy] Error reading body:', e);
+        // Add body for POST/PUT
+        if (req.method === 'POST' || req.method === 'PUT') {
+            if (req.body) {
+                fetchOptions.body = typeof req.body === 'string'
+                    ? req.body
+                    : JSON.stringify(req.body);
             }
         }
 
-        // Forward request to actual RPC
+        // Forward request to RPC
         const response = await fetch(targetUrl, fetchOptions);
 
         // Get response data
-        const contentType = response.headers.get('content-type');
+        const text = await response.text();
         let data;
 
-        if (contentType && contentType.includes('application/json')) {
-            data = await response.text();
-        } else {
-            // Non-JSON response (might be error HTML)
-            const text = await response.text();
-            data = JSON.stringify({
-                error: 'Non-JSON response from RPC',
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            // Not JSON, return error
+            data = {
+                error: 'Invalid JSON response from RPC',
                 status: response.status,
-                content: text.substring(0, 500) // First 500 chars for debugging
-            });
+                content: text.substring(0, 200)
+            };
         }
 
-        // Return with CORS headers
-        return new Response(data, {
-            status: response.status,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            },
-        });
+        // Return response with same status code
+        return res.status(response.status).json(data);
+
     } catch (error) {
         console.error('[RPC Proxy] Error:', error);
 
-        return new Response(
-            JSON.stringify({
-                error: 'Proxy error',
-                message: error.message,
-                stack: error.stack?.substring(0, 500)
-            }),
-            {
-                status: 500,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                },
-            }
-        );
+        return res.status(500).json({
+            error: 'Proxy error',
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 }
