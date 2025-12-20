@@ -16,6 +16,7 @@
 import { getRpcClient } from '../utils/rpc';
 import { base64ToBuffer, bufferToBase64 } from '../utils/crypto';
 import { savePrivacyTransaction } from '../utils/storage';
+import { keyringService } from './KeyringService';
 import nacl from 'tweetnacl';
 
 /**
@@ -156,16 +157,35 @@ class PrivacyService {
      */
     async getEncryptedBalance(address) {
         try {
+            // Auto-fetch private key from KeyringService if not set
+            let privateKey = this._privateKey;
+            if (!privateKey && keyringService.isUnlocked()) {
+                privateKey = keyringService.getPrivateKey(address, 'getEncryptedBalance');
+            }
+
+            if (!privateKey) {
+                console.warn('[PrivacyService] No private key available for encrypted balance');
+                return {
+                    success: false,
+                    error: 'Wallet locked or no key available',
+                    publicBalance: 0,
+                    encryptedBalance: 0,
+                    totalBalance: 0,
+                    hasEncryptedFunds: false
+                };
+            }
+
             const response = await fetch(
                 `${this.getRpcUrl()}/view_encrypted_balance/${address}`,
                 {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-Private-Key': this._privateKey || ''
+                        'X-Private-Key': privateKey
                     }
                 }
             );
+
 
             if (!response.ok) {
                 if (response.status === 404) {
@@ -427,10 +447,20 @@ class PrivacyService {
      */
     async getPendingTransfers(address) {
         try {
+            // Auto-fetch private key from KeyringService if not set
+            let privateKey = this._privateKey;
+            if (!privateKey && keyringService.isUnlocked()) {
+                privateKey = keyringService.getPrivateKey(address, 'getPendingTransfers');
+            }
+
+            if (!privateKey) {
+                return []; // No key = no pending transfers to show
+            }
+
             const response = await fetch(
                 `${this.getRpcUrl()}/pending_private_transfers?address=${address}`,
                 {
-                    headers: { 'X-Private-Key': this._privateKey || '' }
+                    headers: { 'X-Private-Key': privateKey }
                 }
             );
 

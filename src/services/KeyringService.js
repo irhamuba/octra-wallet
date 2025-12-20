@@ -367,6 +367,29 @@ class KeyringService {
     }
 
     /**
+     * Get private key for an address (SENSITIVE - use with caution)
+     * Only for internal services like PrivacyService that need raw key access
+     * The caller is responsible for immediate secure usage
+     */
+    getPrivateKey(address, reason = 'unknown') {
+        if (!_isUnlocked) {
+            console.warn(`[KeyringService] Private key access denied - wallet locked (reason: ${reason})`);
+            return null;
+        }
+
+        const keyData = _decryptedKeys?.get(address);
+        if (!keyData) {
+            console.warn(`[KeyringService] Private key not found for ${address} (reason: ${reason})`);
+            return null;
+        }
+
+        // Log access for audit (but don't log the key itself)
+        console.log(`[KeyringService] Private key accessed for ${address.slice(0, 10)}... (reason: ${reason})`);
+
+        return keyData.privateKeyB64;
+    }
+
+    /**
      * Get public key for an address (safe to expose)
      */
     getPublicKey(address) {
