@@ -311,11 +311,19 @@ function NetworkSettings({ settings, onUpdateSettings, onBack }) {
         setTestResult(null);
 
         try {
-            // In development, use proxy to bypass CORS
+            // ALWAYS use proxy to avoid CORS
             const isDev = import.meta.env.DEV;
-            let testUrl = rpcUrl;
-            if (isDev && (rpcUrl === 'https://octra.network' || rpcUrl.startsWith('https://octra.network'))) {
-                testUrl = '/api';
+            let testUrl;
+
+            if (rpcUrl === 'https://octra.network' || rpcUrl.startsWith('https://octra.network')) {
+                // Use proxy for octra.network
+                testUrl = isDev ? '/api' : '/api/rpc';
+            } else if (rpcUrl.startsWith('http://localhost') || rpcUrl.startsWith('http://127.0.0.1')) {
+                // Local RPC can be accessed directly
+                testUrl = rpcUrl;
+            } else {
+                // Other custom RPC, try proxy first
+                testUrl = isDev ? '/api' : '/api/rpc';
             }
 
             const response = await fetch(`${testUrl}/staging`, {
@@ -329,7 +337,7 @@ function NetworkSettings({ settings, onUpdateSettings, onBack }) {
                 setTestResult({ success: false, message: `HTTP ${response.status}` });
             }
         } catch (error) {
-            setTestResult({ success: false, message: 'Connection failed' });
+            setTestResult({ success: false, message: `Connection failed: ${error.message}` });
         } finally {
             setIsTesting(false);
         }
