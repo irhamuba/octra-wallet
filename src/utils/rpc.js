@@ -3,7 +3,7 @@
  * Handles communication with the Octra network
  */
 
-// Use proxy in development to bypass CORS
+// Use proxy in development AND production to bypass CORS
 const isDev = import.meta.env.DEV;
 
 // Network RPC URLs
@@ -12,9 +12,10 @@ export const RPC_URLS = {
     testnet: import.meta.env.VITE_RPC_URL || 'https://octra.network',
 };
 
-// Development: use Vite proxy to avoid CORS
-// Production: use direct RPC URL from env
-const DEFAULT_RPC = isDev ? '/api' : RPC_URLS.testnet;
+// ALWAYS use proxy to avoid CORS issues
+// Development: Vite dev proxy (/api)
+// Production: Vercel Edge Function (/api/rpc)
+const DEFAULT_RPC = isDev ? '/api' : '/api/rpc';
 const ACTUAL_RPC = RPC_URLS.testnet;
 
 class RPCClient {
@@ -24,18 +25,23 @@ class RPCClient {
     }
 
     setRpcUrl(url) {
-        // In development, redirect external URLs to proxy
-        if (isDev && url === ACTUAL_RPC) {
-            this.rpcUrl = '/api';
-        } else if (isDev && url.startsWith('https://octra.network')) {
-            this.rpcUrl = '/api';
-        } else {
+        // Always use proxy for octra.network to avoid CORS
+        if (url === ACTUAL_RPC || url.startsWith('https://octra.network')) {
+            this.rpcUrl = isDev ? '/api' : '/api/rpc';
+        } else if (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+            // Local nodes can be accessed directly
             this.rpcUrl = url;
+        } else {
+            // Custom RPC URL - use proxy if production
+            this.rpcUrl = isDev ? '/api' : '/api/rpc';
         }
     }
 
     getActualRpcUrl() {
-        return this.rpcUrl === '/api' ? ACTUAL_RPC : this.rpcUrl;
+        if (this.rpcUrl === '/api' || this.rpcUrl === '/api/rpc') {
+            return ACTUAL_RPC;
+        }
+        return this.rpcUrl;
     }
 
     async request(method, path, data = null) {
