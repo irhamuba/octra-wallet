@@ -128,100 +128,99 @@ export function PrivacyView({ wallet, onBack, showToast }) {
                 </button>
             </div>
 
-            {isLoading && !encryptedBalance ? (
-                <div className="privacy-loading">
-                    <div className="loading-spinner" style={{ width: 40, height: 40 }} />
-                    <p>Initializing Secure Session...</p>
+            {/* Single Balance Card - Always show, balance loads in background */}
+            <div className={`privacy-main-card ${isLoading || isRefreshing ? 'updating' : ''}`}>
+                <div className="main-card-header">
+                    <ShieldIcon size={18} className="main-card-icon" />
+                    <span className="main-card-title">Privacy Balance</span>
                 </div>
-            ) : (
-                <>
-                    {/* Single Balance Card */}
-                    <div className={`privacy-main-card ${isRefreshing ? 'updating' : ''}`}>
-                        <div className="main-card-header">
-                            <ShieldIcon size={18} className="main-card-icon" />
-                            <span className="main-card-title">Privacy Balance</span>
-                        </div>
 
-                        <div className="main-card-balance">
-                            <span className={`main-balance-amount ${isRefreshing ? 'shimmer' : ''}`}>
-                                {formatAmount(encryptedBalance?.encryptedBalance || 0)}
-                            </span>
-                            <span className="main-balance-symbol">OCT</span>
-                        </div>
-
-                        <div className="main-card-sub">
-                            <span className="sub-label">Total Balance:</span>
-                            <span className={`sub-value ${isRefreshing ? 'shimmer' : ''}`}>
-                                {formatAmount(totalBalance)} OCT
-                            </span>
-                        </div>
-
-                        <div className="shield-progress">
-                            <div className="shield-progress-bar">
-                                <div
-                                    className="shield-progress-fill"
-                                    style={{ width: `${shieldedPercent}%` }}
-                                />
-                            </div>
-                            <span className="shield-progress-text">{shieldedPercent}% Shielded</span>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="privacy-action-grid">
-                        <button
-                            className="privacy-grid-btn"
-                            onClick={() => { setShieldMode('shield'); setShieldModalOpen(true); }}
-                            disabled={(encryptedBalance?.publicBalance || 0) <= 0}
-                        >
-                            <div className="grid-btn-icon shield">
-                                <ShieldIcon size={22} />
-                            </div>
-                            <span className="grid-btn-label">Shield</span>
-                        </button>
-
-                        <button
-                            className="privacy-grid-btn"
-                            onClick={() => { setShieldMode('unshield'); setShieldModalOpen(true); }}
-                            disabled={!encryptedBalance?.hasEncryptedFunds}
-                        >
-                            <div className="grid-btn-icon unshield">
-                                <UnshieldIcon size={22} />
-                            </div>
-                            <span className="grid-btn-label">Unshield</span>
-                        </button>
-
-                        <button
-                            className="privacy-grid-btn"
-                            onClick={() => setPrivateTransferOpen(true)}
-                            disabled={!encryptedBalance?.hasEncryptedFunds}
-                        >
-                            <div className="grid-btn-icon transfer">
-                                <PrivateTransferIcon size={22} />
-                            </div>
-                            <span className="grid-btn-label">Transfer</span>
-                        </button>
-
-                        <button
-                            className="privacy-grid-btn"
-                            onClick={() => setClaimModalOpen(true)}
-                        >
-                            <div className="grid-btn-icon claim">
-                                <ClaimIcon size={22} />
-                                {pendingTransfers.length > 0 && (
-                                    <span className="grid-btn-badge">{pendingTransfers.length}</span>
-                                )}
-                            </div>
-                            <span className="grid-btn-label">Claim</span>
-                        </button>
-                    </div>
-
-                    {isRefreshing && (
-                        <div className="refresh-status text-xs text-center mt-xl opacity-50">
-                            Updating balance from blockchain...
-                        </div>
+                <div className="main-card-balance">
+                    {isLoading && !encryptedBalance ? (
+                        <span className="main-balance-amount shimmer">---</span>
+                    ) : (
+                        <span className={`main-balance-amount ${isRefreshing ? 'shimmer' : ''}`}>
+                            {formatAmount(encryptedBalance?.encryptedBalance || 0)}
+                        </span>
                     )}
-                </>
+                    <span className="main-balance-symbol">OCT</span>
+                </div>
+
+                <div className="main-card-sub">
+                    <span className="sub-label">Total Balance:</span>
+                    {isLoading && !encryptedBalance ? (
+                        <span className="sub-value shimmer">---</span>
+                    ) : (
+                        <span className={`sub-value ${isRefreshing ? 'shimmer' : ''}`}>
+                            {formatAmount(totalBalance)} OCT
+                        </span>
+                    )}
+                </div>
+
+                <div className="shield-progress">
+                    <div className="shield-progress-bar">
+                        <div
+                            className="shield-progress-fill"
+                            style={{ width: `${shieldedPercent}%` }}
+                        />
+                    </div>
+                    <span className="shield-progress-text">{shieldedPercent}% Shielded</span>
+                </div>
+            </div>
+
+            {/* Action Buttons - Always show, never blocked by loading */}
+            <div className="privacy-action-grid">
+                <button
+                    className="privacy-grid-btn"
+                    onClick={() => { setShieldMode('shield'); setShieldModalOpen(true); }}
+                    disabled={isLoading || (encryptedBalance?.publicBalance || 0) <= 0}
+                >
+                    <div className="grid-btn-icon shield">
+                        <ShieldIcon size={22} />
+                    </div>
+                    <span className="grid-btn-label">Shield</span>
+                </button>
+
+                <button
+                    className="privacy-grid-btn"
+                    onClick={() => { setShieldMode('unshield'); setShieldModalOpen(true); }}
+                    disabled={isLoading || !encryptedBalance?.hasEncryptedFunds}
+                >
+                    <div className="grid-btn-icon unshield">
+                        <UnshieldIcon size={22} />
+                    </div>
+                    <span className="grid-btn-label">Unshield</span>
+                </button>
+
+                <button
+                    className="privacy-grid-btn"
+                    onClick={() => setPrivateTransferOpen(true)}
+                    disabled={isLoading || !encryptedBalance?.hasEncryptedFunds}
+                >
+                    <div className="grid-btn-icon transfer">
+                        <PrivateTransferIcon size={22} />
+                    </div>
+                    <span className="grid-btn-label">Transfer</span>
+                </button>
+
+                <button
+                    className="privacy-grid-btn"
+                    onClick={() => setClaimModalOpen(true)}
+                >
+                    <div className="grid-btn-icon claim">
+                        <ClaimIcon size={22} />
+                        {pendingTransfers.length > 0 && (
+                            <span className="grid-btn-badge">{pendingTransfers.length}</span>
+                        )}
+                    </div>
+                    <span className="grid-btn-label">Claim</span>
+                </button>
+            </div>
+
+            {(isLoading || isRefreshing) && (
+                <div className="refresh-status text-xs text-center mt-xl opacity-50">
+                    {isLoading ? 'Loading privacy data...' : 'Updating balance from blockchain...'}
+                </div>
             )}
 
             {/* Modals */}
