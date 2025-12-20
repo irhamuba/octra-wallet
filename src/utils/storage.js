@@ -295,8 +295,19 @@ const DEFAULT_SETTINGS = {
 export function getSettings() {
     try {
         const stored = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-        if (!stored) return DEFAULT_SETTINGS;
-        return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+        let settings = stored ? { ...DEFAULT_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SETTINGS;
+
+        // AUTO-MIGRATION: Force proxy for octra.network
+        // This fixes users who have cached direct RPC URL
+        if (settings.rpcUrl === 'https://octra.network' || settings.rpcUrl?.startsWith('https://octra.network')) {
+            const isDev = import.meta.env.DEV;
+            const newRpcUrl = isDev ? '/api' : '/api/rpc';
+            console.log(`🔧 Migrating RPC: ${settings.rpcUrl} → ${newRpcUrl}`);
+            settings.rpcUrl = newRpcUrl;
+            saveSettings(settings); // Save migrated settings
+        }
+
+        return settings;
     } catch {
         return DEFAULT_SETTINGS;
     }
