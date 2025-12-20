@@ -461,15 +461,39 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                             <button
                                 className="icon-btn-ghost"
                                 style={{ padding: '4px' }}
-                                onClick={() => {
-                                    navigator.clipboard.writeText(txHash);
-                                    // Could show toast here
+                                onClick={async () => {
+                                    const text = txHash;
+                                    try {
+                                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                                            await navigator.clipboard.writeText(text);
+                                        } else {
+                                            // Fallback
+                                            const textarea = document.createElement('textarea');
+                                            textarea.value = text;
+                                            textarea.style.position = 'fixed';
+                                            textarea.style.left = '-9999px';
+                                            document.body.appendChild(textarea);
+                                            textarea.select();
+                                            document.execCommand('copy');
+                                            document.body.removeChild(textarea);
+                                        }
+                                        // Visual feedback
+                                        const btn = document.activeElement;
+                                        if (btn) {
+                                            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13L9 17L19 7"></path></svg>';
+                                            setTimeout(() => {
+                                                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+                                            }, 1500);
+                                        }
+                                    } catch (err) {
+                                        console.error('Copy failed:', err);
+                                    }
                                 }}
                                 title="Copy transaction hash"
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 0 0 1 2-2h9a2 0 0 1 2 2v1"></path>
+                                    <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                                 </svg>
                             </button>
                         </div>
