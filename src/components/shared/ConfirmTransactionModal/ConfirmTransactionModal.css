@@ -1,58 +1,66 @@
-/* Confirm Transaction Modal */
+/* Confirm Transaction Modal - Professional Minimal Design */
 .confirm-tx-modal {
     max-width: 340px;
-    /* Match other modals */
 }
 
+/* Warning Notice - Subtle */
 .confirm-warning {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 10px;
-    padding: 12px;
-    background: var(--warning-bg);
-    border: 1px solid var(--warning);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-lg);
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 20px;
 }
 
 .confirm-warning svg {
-    color: var(--warning);
+    color: var(--text-tertiary);
     flex-shrink: 0;
-    margin-top: 2px;
+    width: 16px;
+    height: 16px;
 }
 
 .confirm-warning p {
-    font-size: 11px;
-    color: var(--warning);
+    font-size: 12px;
+    color: var(--text-tertiary);
     line-height: 1.4;
     margin: 0;
 }
 
+/* Transaction Details - Clean List */
 .confirm-details {
-    background: var(--bg-elevated);
-    border-radius: var(--radius-lg);
-    padding: 16px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
 }
 
 .confirm-detail-row {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.confirm-detail-row:first-child {
+    padding-top: 0;
 }
 
 .confirm-detail-row:last-child {
-    margin-bottom: 0;
+    border-bottom: none;
 }
 
 .confirm-label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--text-secondary);
+    font-weight: 400;
 }
 
 .confirm-value {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     color: var(--text-primary);
     text-align: right;
@@ -61,25 +69,28 @@
 
 .confirm-address {
     font-family: var(--font-mono);
-    font-size: 10px;
-    max-width: 160px;
-    /* Smaller for compact modal */
+    font-size: 11px;
+    max-width: 180px;
+    line-height: 1.5;
+    color: var(--text-primary);
 }
 
 .confirm-amount {
     font-size: 14px;
     font-weight: 600;
-    color: var(--accent-primary);
+    color: var(--text-primary);
 }
 
+/* Divider */
 .confirm-divider {
-    height: 1px;
-    background: var(--border-subtle);
-    margin: 12px 0;
+    display: none;
 }
 
+/* Total Row */
 .confirm-total {
-    margin-bottom: 0;
+    margin-top: 4px;
+    padding-top: 14px !important;
+    border-top: 1px solid var(--border-default);
 }
 
 .confirm-total .confirm-label {
@@ -89,7 +100,47 @@
 }
 
 .confirm-total .confirm-value {
-    font-size: 15px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
     color: var(--text-primary);
+}
+
+/* Modal Footer - Clean Buttons */
+.confirm-tx-modal .modal-footer {
+    display: flex;
+    gap: 12px;
+    padding-top: 24px;
+    border-top: none;
+}
+
+.confirm-tx-modal .btn {
+    flex: 1;
+    height: 44px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 10px;
+}
+
+.confirm-tx-modal .btn-secondary {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+}
+
+.confirm-tx-modal .btn-secondary:hover {
+    background: var(--bg-hover);
+}
+
+.confirm-tx-modal .btn-primary {
+    background: var(--text-primary);
+    border: none;
+    color: var(--bg-primary);
+}
+
+.confirm-tx-modal .btn-primary:hover {
+    opacity: 0.9;
+}
+
+.confirm-tx-modal .btn-primary:disabled {
+    opacity: 0.5;
 }

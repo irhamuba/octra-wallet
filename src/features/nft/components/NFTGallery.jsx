@@ -11,6 +11,7 @@ import {
     RefreshIcon
 } from '../../../components/shared/Icons';
 import { fetchNFTs, parseNFTMetadata } from '../nftService';
+import './NFTGallery.css';
 import { truncateAddress } from '../../../utils/crypto';
 
 export function NFTGallery({ wallet, rpcClient, onBack }) {

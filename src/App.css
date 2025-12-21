@@ -999,56 +999,63 @@
 
 /* ===== Add Wallet Modal ===== */
 .add-wallet-modal {
-  max-width: 360px;
+  max-width: 340px;
   width: 100%;
 }
 
 .add-wallet-options {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: 0;
 }
 
 .add-wallet-option {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
+  gap: 14px;
+  padding: 16px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: opacity 0.15s;
   text-align: left;
   width: 100%;
 }
 
+.add-wallet-option:last-child {
+  border-bottom: none;
+}
+
 .add-wallet-option:hover {
-  border-color: var(--border-default);
-  background: var(--bg-hover);
+  opacity: 0.7;
 }
 
 .add-wallet-option-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background: var(--bg-elevated);
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.add-wallet-option-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .add-wallet-option-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .add-wallet-option-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-primary);
 }
 

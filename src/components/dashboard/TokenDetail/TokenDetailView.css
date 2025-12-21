@@ -1,10 +1,8 @@
 /* Token Detail - Minimal No Background */
 
 .td {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    padding: 12px 16px;
+    display: block;
+    padding: 0;
 }
 
 /* Navigation */
@@ -53,7 +51,7 @@
     align-items: baseline;
     justify-content: center;
     gap: 4px;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
 .td-balance-amt {
@@ -71,8 +69,8 @@
     display: flex;
     justify-content: center;
     gap: 40px;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
     border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -112,17 +110,14 @@
 
 /* Section */
 .td-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    display: block;
 }
 
 .td-section-title {
     font-size: 11px;
     font-weight: 500;
     color: var(--text-tertiary);
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 /* Empty */
@@ -138,20 +133,32 @@
 
 /* Transactions */
 .td-txs {
-    flex: 1;
-    overflow-y: auto;
+    display: block;
 }
 
 .td-tx {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--border-subtle);
 }
 
 .td-tx:last-child {
     border-bottom: none;
+}
+
+.td-tx-clickable {
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.td-tx-clickable:hover {
+    opacity: 0.7;
+}
+
+.td-tx-clickable:active {
+    opacity: 0.5;
 }
 
 .td-tx-icon {

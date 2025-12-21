@@ -19,14 +19,15 @@ import {
     AnimatedLockIcon,
     AlertIcon
 } from '../shared/Icons';
+import { StepHeader } from './StepHeader/StepHeader';
 import './WelcomeScreen.css';
 
 export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
     return (
-        <div className="onboarding-container animate-fade-in">
+        <div className="onboarding-container welcome-centered animate-fade-in">
             <div className="onboarding-header animate-slide-up">
                 <div className="onboarding-logo">
-                    <UbaLogo size={40} />
+                    <UbaLogo size={64} />
                 </div>
             </div>
 
@@ -64,8 +65,8 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
                 </button>
             </div>
 
-            <div className="text-center mt-xl animate-fade-in-delay">
-                <p className="text-xs text-tertiary">Support Octra Network</p>
+            <div className="onboarding-footer">
+                <p>Support Octra Network</p>
             </div>
         </div>
     );
@@ -101,7 +102,6 @@ export function CreateWalletScreen({ onBack, onComplete }) {
             return;
         }
 
-        setStep(2);
         setIsLoading(true);
 
         try {
@@ -111,13 +111,21 @@ export function CreateWalletScreen({ onBack, onComplete }) {
 
             const positions = getRandomPositions(3, 12);
             setVerifyPositions(positions);
-            setShuffledOptions(shuffleArray([...newWallet.mnemonic]));
 
-            setStep(3);
+            // Select only 8 words total for options (3 correct + 5 random distractors)
+            const correctWords = positions.map(pos => newWallet.mnemonic[pos - 1]);
+            const otherWords = newWallet.mnemonic.filter((_, idx) => !positions.includes(idx + 1));
+            // Shuffle others and take 5
+            const shuffledOthers = shuffleArray(otherWords);
+            const distractors = shuffledOthers.slice(0, 5);
+
+            // Combine and shuffle again
+            setShuffledOptions(shuffleArray([...correctWords, ...distractors]));
+
+            setStep(2); // Skip loading, go directly to recovery phrase
         } catch (error) {
             console.error('Failed to generate wallet:', error);
             setPasswordError('Failed to generate wallet: ' + error.message);
-            setStep(1);
         } finally {
             setIsLoading(false);
         }
@@ -135,7 +143,7 @@ export function CreateWalletScreen({ onBack, onComplete }) {
     };
 
     const handleProceedToVerify = () => {
-        setStep(4);
+        setStep(3);
     };
 
     // Get next empty position
@@ -189,123 +197,112 @@ export function CreateWalletScreen({ onBack, onComplete }) {
         <div className="onboarding-container animate-fade-in">
             {/* Step 1: Set Password */}
             {step === 1 && (
-                <>
-                    <div className="flex items-center gap-md mb-xl">
-                        <button className="header-icon-btn" onClick={onBack}>
-                            <ChevronLeftIcon size={20} />
-                        </button>
-                        <h2 className="text-lg font-semibold">Create Password</h2>
-                        <span className="text-xs text-secondary ml-auto">Step 1 of 3</span>
-                    </div>
+                <div className="create-password-step">
+                    <StepHeader
+                        title="Create Password"
+                        currentStep={1}
+                        totalSteps={3}
+                        onBack={onBack}
+                    />
 
-                    <div className="text-center mb-xl">
-                        <div className="animated-icon-container">
+                    {/* Content */}
+                    <div className="step-content">
+                        {/* Icon */}
+                        <div className="step-icon">
                             <AnimatedLockIcon
-                                size={56}
+                                size={48}
                                 isLocked={password.length >= 8 && password === confirmPassword}
                             />
                         </div>
-                        <p className="text-secondary text-sm">
+
+                        {/* Description */}
+                        <p className="step-description">
                             {password.length >= 8 && password === confirmPassword
                                 ? '✓ Password secured!'
                                 : 'Create a strong password to protect your wallet.'
                             }
                         </p>
-                    </div>
 
-                    <div className="form-group">
-                        <label className="form-label">Password</label>
-                        <div className="input-with-icon">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                className="input input-lg"
-                                value={password}
-                                onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
-                                placeholder="Enter password (min 8 chars)"
-                                autoFocus
-                            />
+                        {/* Form */}
+                        <div className="step-form">
+                            <div className="form-group">
+                                <label className="form-label">Password</label>
+                                <div className="input-with-icon">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        className="input"
+                                        value={password}
+                                        onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
+                                        placeholder="Enter password (min 8 chars)"
+                                        autoFocus
+                                    />
+                                    <button
+                                        type="button"
+                                        className="input-icon-btn"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                    </button>
+                                </div>
+
+                                {password && (
+                                    <div className="password-strength">
+                                        <div className="password-strength-bar">
+                                            <div
+                                                className={`password-strength-fill strength-${passwordStrength.level}`}
+                                                style={{ width: `${passwordStrength.percent}%` }}
+                                            />
+                                        </div>
+                                        <span className={`password-strength-text strength-${passwordStrength.level}`}>
+                                            {passwordStrength.label}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Confirm Password</label>
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    className={`input ${confirmPassword && password !== confirmPassword ? 'input-error' : ''}`}
+                                    value={confirmPassword}
+                                    onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
+                                    placeholder="Confirm your password"
+                                />
+                            </div>
+
+                            {passwordError && <p className="form-error">{passwordError}</p>}
+
                             <button
-                                type="button"
-                                className="input-icon-btn"
-                                onClick={() => setShowPassword(!showPassword)}
-                                tabIndex={-1}
+                                className="btn btn-primary btn-full"
+                                onClick={handleSetPassword}
+                                disabled={password.length < 8 || password !== confirmPassword}
                             >
-                                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                Continue
                             </button>
                         </div>
-
-                        {password && (
-                            <div className="password-strength">
-                                <div className="password-strength-bar">
-                                    <div
-                                        className={`password-strength-fill strength-${passwordStrength.level}`}
-                                        style={{ width: `${passwordStrength.percent}%` }}
-                                    />
-                                </div>
-                                <span className={`password-strength-text strength-${passwordStrength.level}`}>
-                                    {passwordStrength.label}
-                                </span>
-                            </div>
-                        )}
                     </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Confirm Password</label>
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            className={`input input-lg ${confirmPassword && password !== confirmPassword ? 'input-error' : ''}`}
-                            value={confirmPassword}
-                            onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
-                            placeholder="Confirm your password"
-                        />
-                    </div>
-
-                    {passwordError && <p className="text-error text-sm mb-lg">{passwordError}</p>}
-
-                    <button
-                        className="btn btn-primary btn-lg btn-full"
-                        onClick={handleSetPassword}
-                        disabled={password.length < 8 || password !== confirmPassword}
-                    >
-                        Continue
-                    </button>
-                </>
-            )}
-
-            {/* Step 2: Generating */}
-            {step === 2 && (
-                <div className="flex flex-col items-center justify-center h-full">
-                    <div className="loading-spinner-large" />
-                    <p className="text-secondary mt-lg">Generating your wallet...</p>
                 </div>
             )}
 
-            {/* Step 3: Show Recovery Phrase */}
-            {step === 3 && wallet && (
-                <>
-                    <div className="flex items-center gap-md mb-xl">
-                        <button className="header-icon-btn" onClick={() => setStep(1)}>
-                            <ChevronLeftIcon size={20} />
-                        </button>
-                        <h2 className="text-lg font-semibold">Recovery Phrase</h2>
-                        <span className="text-xs text-secondary ml-auto">Step 2 of 3</span>
-                    </div>
+            {/* Step 2: Show Recovery Phrase */}
+            {step === 2 && wallet && (
+                <div className="create-password-step">
+                    <StepHeader
+                        title="Recovery Phrase"
+                        currentStep={2}
+                        totalSteps={3}
+                        onBack={() => setStep(1)}
+                    />
 
-                    <p className="text-secondary text-sm mb-md">
-                        Write down these 12 words in order. This is the only way to recover your wallet.
+                    <p className="step-description">
+                        Write down these 12 words in order. Never share them.
                     </p>
-
-                    {/* Toggle checkbox for reveal */}
-                    <div className="reveal-toggle mb-lg" onClick={() => setShowMnemonic(!showMnemonic)}>
-                        <div className={`reveal-checkbox ${showMnemonic ? 'checked' : ''}`}>
-                            {showMnemonic && <CheckIcon size={12} />}
-                        </div>
-                        <span className="text-sm">Show recovery phrase</span>
-                    </div>
 
                     {/* Mnemonic grid */}
                     <div
-                        className="mnemonic-grid mb-lg"
+                        className="mnemonic-grid"
                         style={{
                             filter: showMnemonic ? 'none' : 'blur(6px)',
                             userSelect: showMnemonic ? 'text' : 'none'
@@ -319,47 +316,46 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                         ))}
                     </div>
 
-                    <button className="btn btn-secondary btn-full mb-lg gap-sm" onClick={handleCopyMnemonic}>
-                        {copied ? <CheckIcon size={18} /> : <CopyIcon size={18} />}
-                        {copied ? 'Copied!' : 'Copy to Clipboard'}
-                    </button>
-
-                    <div className="card mb-lg flex items-center gap-md" style={{ background: 'var(--warning-bg)', borderColor: 'var(--warning)' }}>
-                        <AlertIcon size={24} className="text-warning" style={{ flexShrink: 0 }} />
-                        <p className="text-sm text-warning">
-                            Never share your recovery phrase. Store it securely offline.
-                        </p>
+                    {/* Action row - Show toggle + Copy button */}
+                    <div className="phrase-actions">
+                        <button
+                            className={`phrase-action-btn ${showMnemonic ? 'active' : ''}`}
+                            onClick={() => setShowMnemonic(!showMnemonic)}
+                        >
+                            {showMnemonic ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                            <span>{showMnemonic ? 'Hide' : 'Show'}</span>
+                        </button>
+                        <button
+                            className={`phrase-action-btn ${copied ? 'active' : ''}`}
+                            onClick={handleCopyMnemonic}
+                        >
+                            {copied ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
+                            <span>{copied ? 'Copied!' : 'Copy'}</span>
+                        </button>
                     </div>
 
-                    <button className="btn btn-primary btn-lg btn-full" onClick={handleProceedToVerify}>
+                    <button className="btn btn-primary btn-full" onClick={handleProceedToVerify}>
                         I've Saved It, Continue
                     </button>
-                </>
+                </div>
             )}
 
-            {/* Step 4: Verify 3 Words - Single Word Pool */}
-            {step === 4 && wallet && (
-                <>
-                    <div className="flex items-center gap-md mb-xl">
-                        <button className="header-icon-btn" onClick={() => setStep(3)}>
-                            <ChevronLeftIcon size={20} />
-                        </button>
-                        <h2 className="text-lg font-semibold">Verify Phrase</h2>
-                        <span className="text-xs text-secondary ml-auto">Step 3 of 3</span>
-                    </div>
+            {/* Step 3: Verify 3 Words */}
+            {step === 3 && wallet && (
+                <div className="create-password-step">
+                    <StepHeader
+                        title="Verify Phrase"
+                        currentStep={3}
+                        totalSteps={3}
+                        onBack={() => setStep(2)}
+                    />
 
-                    <p className="text-secondary text-sm mb-md">
-                        Tap the correct words to fill the blanks in order.
-                    </p>
-
-                    <p className="text-accent text-sm mb-lg font-medium flex items-center gap-xs">
-                        {nextEmptyPos
-                            ? `→ Filling word #${nextEmptyPos}`
-                            : <><CheckIcon size={14} /> All words selected</>}
+                    <p className="step-description">
+                        Select the correct words to verify your phrase.
                     </p>
 
                     {/* Phrase grid with blanks */}
-                    <div className="verify-phrase-grid mb-lg">
+                    <div className="verify-phrase-grid">
                         {wallet.mnemonic.map((word, index) => {
                             const position = index + 1;
                             const isBlank = verifyPositions.includes(position);
@@ -381,21 +377,11 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                     </div>
 
                     {verificationError && (
-                        <p className="text-error text-sm mb-md">{verificationError}</p>
+                        <p className="text-error text-sm">{verificationError}</p>
                     )}
 
-                    {/* Remove Last button - always visible to prevent layout jump */}
-                    <button
-                        className="btn btn-ghost btn-sm mb-lg"
-                        onClick={handleRemoveLast}
-                        disabled={Object.keys(selectedWords).length === 0}
-                        style={{ opacity: Object.keys(selectedWords).length === 0 ? 0.4 : 1 }}
-                    >
-                        ← Remove Last
-                    </button>
-
-                    {/* Single word pool */}
-                    <div className="verify-word-pool mb-xl">
+                    {/* Word pool */}
+                    <div className="verify-word-pool">
                         {shuffledOptions.map((word, idx) => {
                             const isUsed = Object.values(selectedWords).includes(word);
                             return (
@@ -411,14 +397,24 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                         })}
                     </div>
 
-                    <button
-                        className="btn btn-primary btn-lg btn-full"
-                        onClick={handleVerify}
-                        disabled={!isVerifyComplete}
-                    >
-                        Complete Setup
-                    </button>
-                </>
+                    {/* Action buttons */}
+                    <div className="verify-actions">
+                        <button
+                            className="btn btn-ghost"
+                            onClick={handleRemoveLast}
+                            disabled={Object.keys(selectedWords).length === 0}
+                        >
+                            ← Undo
+                        </button>
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleVerify}
+                            disabled={!isVerifyComplete}
+                        >
+                            Complete
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -1,137 +1,141 @@
-/* SendView Styles extracted from App.css */
+/* SendView Styles - Professional Minimal Design */
 
+/* Balance Card - Clean */
 .send-balance-card {
     display: flex;
     align-items: center;
-    gap: var(--space-lg);
-    padding: var(--space-xl);
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
+    gap: 14px;
+    padding: 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
+    border-radius: 0;
+    margin-bottom: 20px;
 }
 
 .send-balance-icon {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-elevated);
-    border-radius: var(--radius-md);
-    color: var(--accent-primary);
+    background: transparent;
+    border-radius: 50%;
+    color: var(--text-secondary);
 }
 
 .send-balance-info {
     display: flex;
     flex-direction: column;
+    gap: 2px;
 }
 
+/* Max Button */
 .send-max-btn {
     position: absolute;
-    right: var(--space-md);
+    right: 12px;
     top: 50%;
     transform: translateY(-50%);
-    padding: var(--space-xs) var(--space-md);
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-default);
-    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
     color: var(--text-secondary);
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
     z-index: 5;
-    transition: all 0.2s ease;
+    transition: opacity 0.15s;
 }
 
 .send-max-btn:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-    border-color: var(--border-default);
+    opacity: 0.7;
 }
 
+/* Sign Info */
 .sign-info {
-    background: var(--bg-elevated);
-    padding: var(--space-md);
-    border-radius: var(--radius-md);
-    border-left: 3px solid var(--accent-primary);
+    background: transparent;
+    padding: 12px 0;
+    border-radius: 0;
+    border-left: none;
+    color: var(--text-tertiary);
+    font-size: 12px;
 }
 
-.confirm-row-total {
-    margin-top: var(--space-md);
-    padding-top: var(--space-md) !important;
-    border-top: 2px solid var(--border-subtle) !important;
-}
-
+/* Fee Selector */
 .fee-selector {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-md);
+    display: flex;
+    gap: 8px;
 }
 
 .fee-option {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    padding: var(--space-md);
-    background: var(--bg-card);
+    align-items: center;
+    padding: 12px 8px;
+    background: transparent;
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    border-radius: 10px;
     cursor: pointer;
-    transition: all var(--transition-fast);
-    text-align: left;
+    transition: all 0.15s;
+    text-align: center;
 }
 
 .fee-option:hover {
-    border-color: var(--border-default);
+    border-color: var(--text-tertiary);
 }
 
 .fee-option.active {
-    background: var(--accent-glow);
-    border-color: var(--accent-primary);
+    background: transparent;
+    border-color: var(--text-primary);
 }
 
 .fee-option-label {
     font-size: 11px;
-    font-weight: 600;
+    font-weight: 500;
     color: var(--text-tertiary);
     margin-bottom: 4px;
 }
 
 .fee-option.active .fee-option-label {
-    color: var(--accent-primary);
+    color: var(--text-primary);
 }
 
 .fee-option-value {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 600;
     color: var(--text-primary);
     font-family: var(--font-mono);
 }
 
+/* Success */
 .success-checkmark {
-    width: 64px;
-    height: 64px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
-    background: var(--success-bg);
+    background: transparent;
+    border: 2px solid var(--success);
     display: flex;
     align-items: center;
     justify-content: center;
     color: var(--success);
-    animation: fadeInScale var(--transition-normal);
 }
 
+/* Confirm Card */
 .confirm-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    padding: var(--space-xl);
-    margin-bottom: var(--space-xl);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    margin-bottom: 24px;
 }
 
 .confirm-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-md) 0;
+    padding: 14px 0;
     border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -139,21 +143,29 @@
     border-bottom: none;
 }
 
+.confirm-row-total {
+    margin-top: 0;
+    padding-top: 14px !important;
+    border-top: 1px solid var(--border-default) !important;
+    border-bottom: none !important;
+}
+
 .confirm-label {
     font-size: 13px;
     color: var(--text-secondary);
+    font-weight: 400;
 }
 
 .confirm-value {
-    font-size: 14px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--text-primary);
     text-align: right;
 }
 
 .confirm-amount-large {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 28px;
+    font-weight: 600;
     color: var(--text-primary);
-    letter-spacing: -1px;
+    letter-spacing: -0.5px;
 }

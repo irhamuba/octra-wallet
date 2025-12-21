@@ -4,15 +4,24 @@
  */
 
 import { useState } from 'react';
-import { UbaLogo, OctraLogo, EyeIcon, EyeOffIcon, LockIcon } from '../shared/Icons';
+import { UbaLogo, EyeIcon, EyeOffIcon, LockIcon, KeyIcon, ImportIcon, ChevronLeftIcon } from '../shared/Icons';
 import { securityService } from '../../services/SecurityService';
 import './LockScreen.css';
 
-export function LockScreen({ onUnlock }) {
+export function LockScreen({ onUnlock, onRecover }) {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // Forgot password state
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
+    const [recoveryMethod, setRecoveryMethod] = useState(null); // 'phrase' | 'key'
+    const [recoveryInput, setRecoveryInput] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmNewPassword, setConfirmNewPassword] = useState('');
+    const [recoveryError, setRecoveryError] = useState('');
+    const [isRecovering, setIsRecovering] = useState(false);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -54,6 +63,199 @@ export function LockScreen({ onUnlock }) {
         }
     };
 
+    const handleRecovery = async (e) => {
+        e.preventDefault();
+
+        if (!recoveryInput.trim()) {
+            setRecoveryError(`Please enter your ${recoveryMethod === 'phrase' ? 'recovery phrase' : 'private key'}`);
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setRecoveryError('Password must be at least 8 characters');
+            return;
+        }
+
+        if (newPassword !== confirmNewPassword) {
+            setRecoveryError('Passwords do not match');
+            return;
+        }
+
+        setIsRecovering(true);
+        setRecoveryError('');
+
+        try {
+            if (onRecover) {
+                await onRecover({
+                    type: recoveryMethod === 'phrase' ? 'mnemonic' : 'privateKey',
+                    value: recoveryInput.trim(),
+                    newPassword: newPassword
+                });
+            }
+        } catch (err) {
+            setRecoveryError(err.message || 'Recovery failed. Please check your input.');
+        } finally {
+            setIsRecovering(false);
+        }
+    };
+
+    const resetForgotPassword = () => {
+        setShowForgotPassword(false);
+        setRecoveryMethod(null);
+        setRecoveryInput('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+        setRecoveryError('');
+    };
+
+    const handleCreateNewWallet = () => {
+        // Show confirmation
+        if (window.confirm('⚠️ WARNING: This will DELETE your current wallet permanently!\n\nAll funds will be lost if you haven\'t backed up your recovery phrase.\n\nAre you sure you want to continue?')) {
+            if (window.confirm('This action CANNOT be undone. Are you absolutely sure?')) {
+                // Clear all wallet data and redirect to welcome
+                localStorage.clear();
+                window.location.reload();
+            }
+        }
+    };
+
+    // Forgot Password - Select Recovery Method
+    if (showForgotPassword && !recoveryMethod) {
+        return (
+            <div className="lock-screen animate-fade-in">
+                <div className="lock-screen-content">
+                    <button className="forgot-back-btn" onClick={resetForgotPassword}>
+                        <ChevronLeftIcon size={20} />
+                        <span>Back</span>
+                    </button>
+
+                    <div className="lock-icon-container">
+                        <LockIcon size={32} />
+                    </div>
+
+                    <h2 className="lock-title" style={{ marginBottom: 8 }}>Recover Wallet</h2>
+                    <p className="lock-subtitle">Choose how to recover your wallet</p>
+
+                    <div className="recovery-options">
+                        <button
+                            className="recovery-option"
+                            onClick={() => setRecoveryMethod('phrase')}
+                        >
+                            <ImportIcon size={20} />
+                            <div className="recovery-option-text">
+                                <span className="recovery-option-title">Recovery Phrase</span>
+                                <span className="recovery-option-desc">Use your 12-word phrase</span>
+                            </div>
+                        </button>
+                        <button
+                            className="recovery-option"
+                            onClick={() => setRecoveryMethod('key')}
+                        >
+                            <KeyIcon size={20} />
+                            <div className="recovery-option-text">
+                                <span className="recovery-option-title">Private Key</span>
+                                <span className="recovery-option-desc">Use your private key</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Create New Wallet - Danger Option */}
+                    <div className="recovery-divider">
+                        <span>or</span>
+                    </div>
+
+                    <button
+                        className="recovery-option recovery-option-danger"
+                        onClick={handleCreateNewWallet}
+                    >
+                        <div className="recovery-option-text">
+                            <span className="recovery-option-title">Create New Wallet</span>
+                            <span className="recovery-option-desc recovery-option-danger-desc">
+                                ⚠️ Deletes current wallet permanently
+                            </span>
+                        </div>
+                    </button>
+                </div>
+                <p className="lock-network-badge">Support Octra Network</p>
+            </div>
+        );
+    }
+
+    // Forgot Password - Enter Recovery Data
+    if (showForgotPassword && recoveryMethod) {
+        return (
+            <div className="lock-screen animate-fade-in">
+                <div className="lock-screen-content">
+                    <button className="forgot-back-btn" onClick={() => setRecoveryMethod(null)}>
+                        <ChevronLeftIcon size={20} />
+                        <span>Back</span>
+                    </button>
+
+                    <h2 className="lock-title" style={{ marginBottom: 8 }}>
+                        {recoveryMethod === 'phrase' ? 'Enter Recovery Phrase' : 'Enter Private Key'}
+                    </h2>
+                    <p className="lock-subtitle">Enter your credentials and create a new password</p>
+
+                    <form onSubmit={handleRecovery} className="lock-form">
+                        <div className="form-group">
+                            <textarea
+                                className="input recovery-textarea"
+                                value={recoveryInput}
+                                onChange={(e) => {
+                                    setRecoveryInput(e.target.value);
+                                    setRecoveryError('');
+                                }}
+                                placeholder={recoveryMethod === 'phrase' ? 'word1 word2 word3 ...' : 'Paste your private key'}
+                                rows={3}
+                                disabled={isRecovering}
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <input
+                                type="password"
+                                className="input"
+                                value={newPassword}
+                                onChange={(e) => {
+                                    setNewPassword(e.target.value);
+                                    setRecoveryError('');
+                                }}
+                                placeholder="New password (min 8 chars)"
+                                disabled={isRecovering}
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <input
+                                type="password"
+                                className="input"
+                                value={confirmNewPassword}
+                                onChange={(e) => {
+                                    setConfirmNewPassword(e.target.value);
+                                    setRecoveryError('');
+                                }}
+                                placeholder="Confirm new password"
+                                disabled={isRecovering}
+                            />
+                        </div>
+
+                        {recoveryError && <p className="form-error">{recoveryError}</p>}
+
+                        <button
+                            type="submit"
+                            className="btn btn-primary btn-lg btn-full"
+                            disabled={isRecovering || !recoveryInput.trim() || newPassword.length < 8 || newPassword !== confirmNewPassword}
+                        >
+                            {isRecovering ? <span className="loading-spinner" /> : 'Recover Wallet'}
+                        </button>
+                    </form>
+                </div>
+                <p className="lock-network-badge">Support Octra Network</p>
+            </div>
+        );
+    }
+
+    // Normal Lock Screen
     return (
         <div className="lock-screen animate-fade-in">
             <div className="lock-screen-content">
@@ -101,6 +303,14 @@ export function LockScreen({ onUnlock }) {
                         disabled={isLoading || !password.trim()}
                     >
                         {isLoading ? <span className="loading-spinner" /> : 'Unlock'}
+                    </button>
+
+                    <button
+                        type="button"
+                        className="forgot-password-btn"
+                        onClick={() => setShowForgotPassword(true)}
+                    >
+                        Forgot password?
                     </button>
                 </form>
             </div>

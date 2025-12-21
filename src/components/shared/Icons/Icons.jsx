@@ -58,6 +58,13 @@ export const HistoryIcon = ({ size = 24, className = '' }) => (
     </svg>
 );
 
+export const SearchIcon = ({ size = 24, className = '' }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+        <path d="M16 16L20 20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
 export const WalletIcon = ({ size = 24, className = '' }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
         <rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2" />

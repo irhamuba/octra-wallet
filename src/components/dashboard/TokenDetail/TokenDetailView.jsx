@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { formatAmount } from '../../../utils/crypto';
 import { TokenIcon } from '../../shared/TokenIcon';
 import { SendIcon, ReceiveIcon, SwapIcon } from './TokenDetailIcons';
+import { TransactionDetailModal } from '../TransactionDetailModal';
 import './TokenDetailView.css';
 
 export function TokenDetailView({ token, onBack, onSend, onReceive, transactions }) {
+    const [selectedTx, setSelectedTx] = useState(null);
+
     const tokenTxs = transactions?.filter(tx =>
         (token.isNative && !tx.token) || tx.token === token.symbol
     ) || [];
@@ -63,7 +67,11 @@ export function TokenDetailView({ token, onBack, onSend, onReceive, transactions
                 ) : (
                     <div className="td-txs">
                         {tokenTxs.slice(0, 10).map((tx, i) => (
-                            <div key={i} className="td-tx">
+                            <div
+                                key={i}
+                                className="td-tx td-tx-clickable"
+                                onClick={() => setSelectedTx(tx)}
+                            >
                                 <div className={`td-tx-icon ${tx.type}`}>
                                     {tx.type === 'in' ? <ReceiveIcon /> : <SendIcon />}
                                 </div>
@@ -79,6 +87,14 @@ export function TokenDetailView({ token, onBack, onSend, onReceive, transactions
                     </div>
                 )}
             </div>
+
+            {/* Transaction Detail Modal */}
+            {selectedTx && (
+                <TransactionDetailModal
+                    tx={selectedTx}
+                    onClose={() => setSelectedTx(null)}
+                />
+            )}
         </div>
     );
 }
