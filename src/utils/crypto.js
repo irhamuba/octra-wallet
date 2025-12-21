@@ -425,10 +425,10 @@ export function truncateAddress(address, startChars = 10, endChars = 8) {
 
 /**
  * Format amount with proper decimals and thousand separators
- * Defaults to 2 decimal places as per user preference
+ * Defaults to 3 decimal places as per user preference
  */
-export function formatAmount(amount, decimals = 2) {
-    if (amount === null || amount === undefined) return '0.00';
+export function formatAmount(amount, decimals = 3) {
+    if (amount === null || amount === undefined) return '0.000';
 
     // Ensure we work with a string to avoid floating point math rounding
     let str = typeof amount === 'number' ? amount.toString() : amount;

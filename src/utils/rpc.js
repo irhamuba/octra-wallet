@@ -256,19 +256,18 @@ class RPCClient {
                 };
             }
 
-            // Fallback: calculate based on amount (Octra fee structure)
-            // Fee = base fee + percentage based on amount
-            const baseFee = 0.001;
-            const percentFee = amount * 0.0001; // 0.01% of amount
-
+            // Fallback: Based on 20 tx analysis from network
+            // OU 1000 = 0.001 OCT (Slow)
+            // OU 2000 = 0.002 OCT (Normal)
+            // OU 3000 = 0.003 OCT (Fast)
             return {
-                low: Math.max(baseFee, baseFee + percentFee * 0.5),
-                medium: Math.max(baseFee, baseFee + percentFee),
-                high: Math.max(baseFee, baseFee + percentFee * 2),
-                baseFee: baseFee
+                low: 0.001,
+                medium: 0.002,
+                high: 0.003,
+                baseFee: 0.001
             };
         } catch {
-            // Default fallback fees
+            // Default fallback fees - from network analysis
             return {
                 low: 0.001,
                 medium: 0.002,

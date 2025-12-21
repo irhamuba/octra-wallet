@@ -164,15 +164,12 @@
 }
 
 .step-lottie-wrapper {
-    width: 32px;
-    /* Match parent dot size */
-    height: 32px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* overflow: hidden; Removed to allow Pop effect */
     pointer-events: none;
-    /* Ensure clicks pass through */
 }
 
 .step-lottie-wrapper>div {
@@ -181,4 +178,9 @@
     justify-content: center;
     width: 100% !important;
     height: 100% !important;
+}
+
+/* Make checkmark visible on green background */
+.step-lottie-wrapper svg path {
+    stroke: #ffffff !important;
 }

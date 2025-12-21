@@ -1,5 +1,5 @@
 /**
- * Wallet Selector Component
+ * Wallet Selector Component - Professional & Minimalist
  * Dropdown for switching between multiple wallets
  */
 
@@ -7,14 +7,16 @@ import { useState } from 'react';
 import './WalletSelector.css';
 import {
     ChevronLeftIcon,
-    ChevronRightIcon,
+    ChevronDownIcon,
     PlusIcon,
     CheckIcon,
     CopyIcon,
     WalletIcon,
-    EditIcon
+    EditIcon,
+    CloseIcon,
+    UbaLogo
 } from '../Icons';
-import { truncateAddress } from '../../../utils/crypto';
+import { truncateAddress, formatAmount } from '../../../utils/crypto';
 
 export function WalletSelector({
     wallets,
@@ -38,71 +40,74 @@ export function WalletSelector({
     };
 
     return (
-        <div className="wallet-selector animate-fade-in">
-            <div className="wallet-selector-header">
-                <button className="header-icon-btn" onClick={onClose}>
-                    <ChevronLeftIcon size={20} />
-                </button>
-                <h2 className="text-lg font-semibold">My Wallets</h2>
-                <button className="header-icon-btn" onClick={onAddWallet}>
-                    <PlusIcon size={20} />
-                </button>
-            </div>
-
-            <div className="wallet-list">
-                {wallets.map((wallet, index) => (
-                    <div
-                        key={wallet.id || index}
-                        className={`wallet-list-item ${index === activeIndex ? 'active' : ''}`}
-                        onClick={() => onSelect(index)}
-                    >
+        <div className="wallet-selector-content">
+            {/* Wallet List */}
+            <div className="wallet-list-container">
+                {wallets.map((wallet, index) => {
+                    const isActive = index === activeIndex;
+                    return (
                         <div
-                            className="wallet-list-icon-wrapper"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (onEditWallet) onEditWallet(index);
-                            }}
+                            key={wallet.id || index}
+                            className={`wallet-card ${isActive ? 'active' : ''}`}
+                            onClick={() => onSelect(index)}
                         >
-                            <div className="wallet-list-icon">
-                                <WalletIcon size={20} />
+                            <div
+                                className="wallet-avatar-container"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onSelect) onSelect(index);
+                                }}
+                            >
+                                <div className="wallet-avatar">
+                                    <span className="wallet-avatar-number">
+                                        <WalletIcon size={16} />
+                                    </span>
+                                    <div
+                                        className="wallet-avatar-edit-overlay"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (onEditWallet) onEditWallet(index);
+                                        }}
+                                    >
+                                        <EditIcon size={12} />
+                                    </div>
+                                </div>
                             </div>
-                            <div className="wallet-list-icon-edit">
-                                <EditIcon size={12} />
+
+                            <div className="wallet-info">
+                                <div className="wallet-name-row">
+                                    <span className="wallet-name">
+                                        {wallet.name || `Wallet ${index + 1}`}
+                                    </span>
+                                    {isActive && <div className="wallet-check-indicator"><CheckIcon size={14} /></div>}
+                                </div>
+                                <div className="wallet-balance">
+                                    {wallet.balance !== undefined ? formatAmount(wallet.balance) : '0.000'} OCT
+                                </div>
+                            </div>
+
+                            <div className="wallet-actions">
+                                <button
+                                    className="wallet-action-btn"
+                                    onClick={(e) => handleCopy(wallet.address, index, e)}
+                                >
+                                    {copied === index ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+                                </button>
                             </div>
                         </div>
-
-                        <div className="wallet-list-info">
-                            <div className="wallet-list-name">
-                                {wallet.name || `Wallet ${index + 1}`}
-                                {index === activeIndex && (
-                                    <span className="wallet-active-badge">Active</span>
-                                )}
-                            </div>
-                            <div className="wallet-list-address">
-                                {truncateAddress(wallet.address, 10, 8)}
-                            </div>
-                        </div>
-
-                        <button
-                            className="wallet-list-copy"
-                            onClick={(e) => handleCopy(wallet.address, index, e)}
-                        >
-                            {copied === index ? (
-                                <CheckIcon size={16} style={{ color: 'var(--success)' }} />
-                            ) : (
-                                <CopyIcon size={16} />
-                            )}
-                        </button>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
+            {/* Simple Add Wallet Button */}
             <button
-                className="btn btn-secondary btn-full mt-lg gap-sm"
+                className="wallet-add-btn-minimal"
                 onClick={onAddWallet}
             >
-                <PlusIcon size={18} />
-                Add Wallet
+                <div className="add-icon-circle">
+                    <PlusIcon size={14} />
+                </div>
+                <span>Add Wallet</span>
             </button>
         </div>
     );
@@ -111,47 +116,20 @@ export function WalletSelector({
 export function WalletHeader({
     wallet,
     wallets = [],
-    onOpenSelector,
-    onCopyAddress
+    onOpenSelector
 }) {
-    const [copied, setCopied] = useState(false);
-
-    const handleCopy = async () => {
-        try {
-            await navigator.clipboard.writeText(wallet.address);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-            if (onCopyAddress) onCopyAddress();
-        } catch (err) {
-            console.error('Failed to copy:', err);
-        }
-    };
-
     return (
-        <div className="wallet-header-address" onClick={onOpenSelector}>
-            <div className="wallet-header-name">
+        <button className="wallet-header-btn" onClick={onOpenSelector}>
+            <div className="header-wallet-icon">
+                <UbaLogo size={20} />
+            </div>
+            <span className="header-wallet-name">
                 {wallet.name || 'Wallet 1'}
-                {wallets.length > 1 && (
-                    <ChevronRightIcon size={14} className="wallet-dropdown-icon" />
-                )}
+            </span>
+            <div className="header-dropdown-icon">
+                <ChevronDownIcon size={14} />
             </div>
-            <div className="wallet-header-addr">
-                <span className="address-text">{truncateAddress(wallet.address, 8, 6)}</span>
-                <button
-                    className="address-copy-btn"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopy();
-                    }}
-                >
-                    {copied ? (
-                        <CheckIcon size={14} style={{ color: 'var(--success)' }} />
-                    ) : (
-                        <CopyIcon size={14} />
-                    )}
-                </button>
-            </div>
-        </div>
+        </button>
     );
 }
 

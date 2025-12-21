@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import Lottie from 'lottie-react';
 import { getRpcClient } from '../../utils/rpc';
 import {
     UbaLogo,
@@ -23,10 +24,14 @@ import {
 // ... other imports
 // ... other imports
 import { StepHeader } from './StepHeader/StepHeader';
+import { getPasswordStrength } from '../../utils/validation';
 import './WelcomeScreen.css';
 import './SuccessSplash.css';
 
-// Success Splash Component - Phantom-like experience
+// Import Lottie animation
+import successAnimation from './animations/step-complete.json';
+
+// Success Splash Component - Using Lottie animation
 function SuccessSplash({ onFinish }) {
     const [phase, setPhase] = useState('entering'); // entering -> visible -> exiting
 
@@ -44,10 +49,12 @@ function SuccessSplash({ onFinish }) {
         <div className={`success-splash ${phase}`}>
             <div className="success-content">
                 <div className="success-icon-container">
-                    {/* CSS Animation (Clean Checkmark bounce) */}
-                    <div className="css-success-circle">
-                        <CheckIcon size={40} className="css-success-check" />
-                    </div>
+                    {/* Lottie Animation */}
+                    <Lottie
+                        animationData={successAnimation}
+                        loop={false}
+                        style={{ width: 120, height: 120 }}
+                    />
                 </div>
                 <h2 className="success-title">Wallet Ready!</h2>
                 <p className="success-message">Redirecting to dashboard...</p>
@@ -541,192 +548,237 @@ export function ImportWalletScreen({ onBack, onComplete }) {
         return <SuccessSplash onFinish={handleFinalSuccess} />;
     }
 
+    // Calculate total steps and current step for header
+    const getTotalSteps = () => importType ? 3 : 2;
+    const getCurrentStep = () => {
+        if (step === 1) return 1;
+        if (step === 2 && !importType) return 2;
+        if (step === 2 && importType) return 3;
+        return step;
+    };
+
     return (
         <div className="onboarding-container animate-fade-in">
             {/* Step 1: Set Password */}
             {step === 1 && (
-                <>
-                    <div className="flex items-center gap-md mb-xl">
-                        <button className="header-icon-btn" onClick={onBack}>
-                            <ChevronLeftIcon size={20} />
-                        </button>
-                        <h2 className="text-lg font-semibold">Create Password</h2>
-                    </div>
+                <div className="create-password-step">
+                    <StepHeader
+                        title="Create Password"
+                        currentStep={1}
+                        totalSteps={3}
+                        onBack={onBack}
+                    />
 
-                    <div className="text-center mb-xl">
-                        <div className="animated-icon-container">
+                    <div className="step-content">
+                        {/* Icon */}
+                        <div className="step-icon">
                             <AnimatedLockIcon
-                                size={56}
+                                size={48}
                                 isLocked={password.length >= 8 && password === confirmPassword}
                             />
                         </div>
-                        <p className="text-secondary text-sm">
+
+                        {/* Description */}
+                        <p className="step-description">
                             {password.length >= 8 && password === confirmPassword
                                 ? '✓ Password secured!'
                                 : 'Create a password to protect your imported wallet.'
                             }
                         </p>
-                    </div>
 
-                    <div className="form-group">
-                        <label className="form-label">Password</label>
-                        <div className="input-with-icon">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                className="input input-lg"
-                                value={password}
-                                onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
-                                placeholder="Enter password (min 8 chars)"
-                                autoFocus
-                            />
-                            <button
-                                type="button"
-                                className="input-icon-btn"
-                                onClick={() => setShowPassword(!showPassword)}
-                                tabIndex={-1}
-                            >
-                                {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
-                            </button>
-                        </div>
-
-                        {password && (
-                            <div className="password-strength">
-                                <div className="password-strength-bar">
-                                    <div
-                                        className={`password-strength-fill strength-${passwordStrength.level}`}
-                                        style={{ width: `${passwordStrength.percent}%` }}
-                                    />
-                                </div>
-                                <span className={`password-strength-text strength-${passwordStrength.level}`}>
-                                    {passwordStrength.label}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="form-group">
-                        <label className="form-label">Confirm Password</label>
-                        <input
-                            type={showPassword ? 'text' : 'password'}
-                            className={`input input-lg ${confirmPassword && password !== confirmPassword ? 'input-error' : ''}`}
-                            value={confirmPassword}
-                            onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
-                            placeholder="Confirm your password"
-                        />
-                    </div>
-
-                    {passwordError && <p className="text-error text-sm mb-lg">{passwordError}</p>}
-
-                    <button
-                        className="btn btn-primary btn-lg btn-full"
-                        onClick={handleSetPassword}
-                        disabled={password.length < 8 || password !== confirmPassword}
-                    >
-                        Continue
-                    </button>
-                </>
-            )}
-
-            {/* Step 2: Choose Import Method */}
-            {step === 2 && !importType && (
-                <>
-                    <div className="flex items-center gap-md mb-xl">
-                        <button className="header-icon-btn" onClick={() => setStep(1)}>
-                            <ChevronLeftIcon size={20} />
-                        </button>
-                        <h2 className="text-lg font-semibold">Import Wallet</h2>
-                    </div>
-
-                    <p className="text-secondary text-sm mb-xl">
-                        Choose how you want to import your wallet
-                    </p>
-
-                    <div className="flex flex-col gap-md">
-                        <button className="onboarding-option" onClick={() => setImportType('mnemonic')}>
-                            <div className="onboarding-option-icon">
-                                <ImportIcon size={24} />
-                            </div>
-                            <div className="onboarding-option-content">
-                                <div className="onboarding-option-title">Recovery Phrase</div>
-                                <div className="onboarding-option-desc">Import using 12-word mnemonic phrase</div>
-                            </div>
-                            <ChevronRightIcon size={20} className="onboarding-option-arrow" />
-                        </button>
-
-                        <button className="onboarding-option" onClick={() => setImportType('privateKey')}>
-                            <div className="onboarding-option-icon">
-                                <KeyIcon size={24} />
-                            </div>
-                            <div className="onboarding-option-content">
-                                <div className="onboarding-option-title">Private Key</div>
-                                <div className="onboarding-option-desc">Import using base64 encoded private key</div>
-                            </div>
-                            <ChevronRightIcon size={20} className="onboarding-option-arrow" />
-                        </button>
-                    </div>
-                </>
-            )}
-
-            {/* Step 2: Enter Phrase or Key */}
-            {step === 2 && importType && (
-                <>
-                    <div className="flex items-center gap-md mb-xl">
-                        <button className="header-icon-btn" onClick={() => setImportType(null)}>
-                            <ChevronLeftIcon size={20} />
-                        </button>
-                        <h2 className="text-lg font-semibold">
-                            {importType === 'mnemonic' ? 'Recovery Phrase' : 'Private Key'}
-                        </h2>
-                    </div>
-
-                    <div className="flex-1">
-                        {importType === 'mnemonic' ? (
+                        {/* Form */}
+                        <div className="step-form">
                             <div className="form-group">
-                                <label className="form-label">Enter your 12-word recovery phrase</label>
-                                <textarea
-                                    className="input input-lg"
-                                    value={mnemonic}
-                                    onChange={(e) => setMnemonic(e.target.value)}
-                                    placeholder="word1 word2 word3..."
-                                    rows={4}
-                                    style={{ resize: 'none', fontFamily: 'var(--font-mono)' }}
-                                />
-                                <p className="form-hint">Separate each word with a space</p>
-                            </div>
-                        ) : (
-                            <div className="form-group">
-                                <label className="form-label">Enter your private key (Base64)</label>
+                                <label className="form-label">Password</label>
                                 <div className="input-with-icon">
                                     <input
-                                        type={showKey ? 'text' : 'password'}
-                                        className="input input-lg input-mono"
-                                        value={privateKey}
-                                        onChange={(e) => setPrivateKey(e.target.value)}
-                                        placeholder="Enter base64 private key"
+                                        type={showPassword ? 'text' : 'password'}
+                                        className="input"
+                                        value={password}
+                                        onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
+                                        placeholder="Enter password (min 8 chars)"
+                                        autoFocus
                                     />
                                     <button
                                         type="button"
                                         className="input-icon-btn"
-                                        onClick={() => setShowKey(!showKey)}
+                                        onClick={() => setShowPassword(!showPassword)}
                                         tabIndex={-1}
                                     >
-                                        {showKey ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                        {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                                     </button>
                                 </div>
+
+                                {password && (
+                                    <div className="password-strength">
+                                        <div className="password-strength-bar">
+                                            <div
+                                                className={`password-strength-fill strength-${passwordStrength.level}`}
+                                                style={{ width: `${passwordStrength.percent}%` }}
+                                            />
+                                        </div>
+                                        <span className={`password-strength-text strength-${passwordStrength.level}`}>
+                                            {passwordStrength.label}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
-                        )}
 
-                        {error && <div className="text-error text-sm mb-lg">{error}</div>}
+                            <div className="form-group">
+                                <label className="form-label">Confirm Password</label>
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    className={`input ${confirmPassword && password !== confirmPassword ? 'input-error' : ''}`}
+                                    value={confirmPassword}
+                                    onChange={(e) => { setConfirmPassword(e.target.value); setPasswordError(''); }}
+                                    placeholder="Confirm your password"
+                                />
+                            </div>
+
+                            {passwordError && <p className="form-error">{passwordError}</p>}
+
+                            <button
+                                className="btn btn-primary btn-full"
+                                onClick={handleSetPassword}
+                                disabled={password.length < 8 || password !== confirmPassword}
+                            >
+                                Continue
+                            </button>
+                        </div>
                     </div>
+                </div>
+            )}
 
-                    <button
-                        className="btn btn-primary btn-lg btn-full"
-                        onClick={handleImport}
-                        disabled={isLoading || (importType === 'mnemonic' ? !mnemonic.trim() : !privateKey.trim())}
-                    >
-                        {isLoading ? <span className="loading-spinner" /> : 'Import Wallet'}
-                    </button>
-                </>
+            {/* Step 2: Choose Import Method */}
+            {step === 2 && !importType && (
+                <div className="create-password-step">
+                    <StepHeader
+                        title="Import Method"
+                        currentStep={2}
+                        totalSteps={3}
+                        onBack={() => setStep(1)}
+                    />
+
+                    <div className="step-content">
+                        {/* Icon */}
+                        <div className="step-icon">
+                            <ImportIcon size={48} />
+                        </div>
+
+                        <p className="step-description">
+                            Choose how you want to import your wallet
+                        </p>
+
+                        <div className="import-options">
+                            <button className="onboarding-option" onClick={() => setImportType('mnemonic')}>
+                                <div className="onboarding-option-icon">
+                                    <ImportIcon size={24} />
+                                </div>
+                                <div className="onboarding-option-content">
+                                    <div className="onboarding-option-title">Recovery Phrase</div>
+                                    <div className="onboarding-option-desc">Import using 12-word mnemonic phrase</div>
+                                </div>
+                                <ChevronRightIcon size={20} className="onboarding-option-arrow" />
+                            </button>
+
+                            <button className="onboarding-option" onClick={() => setImportType('privateKey')}>
+                                <div className="onboarding-option-icon">
+                                    <KeyIcon size={24} />
+                                </div>
+                                <div className="onboarding-option-content">
+                                    <div className="onboarding-option-title">Private Key</div>
+                                    <div className="onboarding-option-desc">Import using base64 encoded private key</div>
+                                </div>
+                                <ChevronRightIcon size={20} className="onboarding-option-arrow" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Step 3: Enter Phrase or Key */}
+            {step === 2 && importType && (
+                <div className="create-password-step">
+                    <StepHeader
+                        title={importType === 'mnemonic' ? 'Recovery Phrase' : 'Private Key'}
+                        currentStep={3}
+                        totalSteps={3}
+                        onBack={() => setImportType(null)}
+                    />
+
+                    <div className="step-content">
+                        {/* Icon */}
+                        <div className="step-icon">
+                            {importType === 'mnemonic' ? (
+                                <ImportIcon size={48} />
+                            ) : (
+                                <KeyIcon size={48} />
+                            )}
+                        </div>
+
+                        <p className="step-description">
+                            {importType === 'mnemonic'
+                                ? 'Enter your 12-word recovery phrase'
+                                : 'Enter your private key (Base64 encoded)'
+                            }
+                        </p>
+
+                        <div className="step-form">
+                            {importType === 'mnemonic' ? (
+                                <div className="form-group">
+                                    <label className="form-label">Recovery Phrase</label>
+                                    <textarea
+                                        className="input input-mono"
+                                        value={mnemonic}
+                                        onChange={(e) => { setMnemonic(e.target.value); setError(''); }}
+                                        placeholder="Enter your 12 words separated by spaces..."
+                                        rows={4}
+                                        style={{ resize: 'none', lineHeight: '1.6' }}
+                                        autoFocus
+                                    />
+                                    <p className="form-hint">Separate each word with a space</p>
+                                </div>
+                            ) : (
+                                <div className="form-group">
+                                    <label className="form-label">Private Key</label>
+                                    <div className="input-with-icon">
+                                        <input
+                                            type={showKey ? 'text' : 'password'}
+                                            className="input input-mono"
+                                            value={privateKey}
+                                            onChange={(e) => { setPrivateKey(e.target.value); setError(''); }}
+                                            placeholder="Paste your base64 private key..."
+                                            autoFocus
+                                        />
+                                        <button
+                                            type="button"
+                                            className="input-icon-btn"
+                                            onClick={() => setShowKey(!showKey)}
+                                            tabIndex={-1}
+                                        >
+                                            {showKey ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="form-error-box">
+                                    <AlertIcon size={16} />
+                                    <span>{error}</span>
+                                </div>
+                            )}
+
+                            <button
+                                className="btn btn-primary btn-full"
+                                onClick={handleImport}
+                                disabled={isLoading || (importType === 'mnemonic' ? !mnemonic.trim() : !privateKey.trim())}
+                            >
+                                {isLoading ? <span className="loading-spinner" /> : 'Import Wallet'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -750,22 +802,6 @@ function getRandomPositions(count, max) {
     return Array.from(positions).sort((a, b) => a - b);
 }
 
-function getPasswordStrength(password) {
-    if (!password) return { level: 'none', label: '', percent: 0 };
 
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (password.length >= 12) score += 1;
-    if (password.length >= 16) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^a-zA-Z0-9]/.test(password)) score += 1;
-
-    if (score <= 2) return { level: 'weak', label: 'Weak', percent: 25 };
-    if (score <= 4) return { level: 'fair', label: 'Fair', percent: 50 };
-    if (score <= 5) return { level: 'good', label: 'Good', percent: 75 };
-    return { level: 'strong', label: 'Strong', percent: 100 };
-}
 
 export default WelcomeScreen;

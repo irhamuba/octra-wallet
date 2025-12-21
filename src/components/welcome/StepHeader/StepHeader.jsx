@@ -1,7 +1,7 @@
 import React from 'react';
 import Lottie from 'lottie-react';
 import { ChevronLeftIcon } from '../../shared/Icons/Icons';
-import stepCompleteAnimation from '../../../assets/animations/step-complete.json';
+import stepCompleteAnimation from '../animations/step-complete.json';
 import './StepHeader.css';
 
 /**

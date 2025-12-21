@@ -142,8 +142,14 @@
 }
 
 .step-icon {
-    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 16px;
     color: var(--text-secondary);
+    opacity: 0.8;
 }
 
 .step-description {
@@ -236,63 +242,7 @@
     color: var(--text-secondary);
 }
 
-/* Password Strength */
-.password-strength {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 6px;
-}
-
-.password-strength-bar {
-    flex: 1;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.password-strength-fill {
-    height: 100%;
-    transition: width 0.3s, background 0.3s;
-}
-
-.password-strength-fill.strength-weak {
-    background: var(--error);
-}
-
-.password-strength-fill.strength-fair {
-    background: var(--warning);
-}
-
-.password-strength-fill.strength-good {
-    background: var(--success);
-}
-
-.password-strength-fill.strength-strong {
-    background: var(--success);
-}
-
-.password-strength-text {
-    font-size: 11px;
-    font-weight: 500;
-}
-
-.password-strength-text.strength-weak {
-    color: var(--error);
-}
-
-.password-strength-text.strength-fair {
-    color: var(--warning);
-}
-
-.password-strength-text.strength-good {
-    color: var(--success);
-}
-
-.password-strength-text.strength-strong {
-    color: var(--success);
-}
+/* Password Strength styles moved to App.css */
 
 /* ===== Mnemonic Grid (Step 2) ===== */
 .mnemonic-grid {
@@ -525,4 +475,31 @@
 .reveal-checkbox,
 .reveal-checkbox.checked {
     display: none;
+}
+
+/* ===== Import Options ===== */
+.import-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+}
+
+/* ===== Form Error Box ===== */
+.form-error-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 8px;
+    color: var(--error);
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.form-error-box svg {
+    flex-shrink: 0;
+    margin-top: 2px;
 }

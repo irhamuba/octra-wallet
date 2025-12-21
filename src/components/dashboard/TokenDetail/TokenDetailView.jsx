@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { formatAmount } from '../../../utils/crypto';
 import { TokenIcon } from '../../shared/TokenIcon';
 import { SendIcon, ReceiveIcon, SwapIcon } from './TokenDetailIcons';
-import { TransactionDetailModal } from '../TransactionDetailModal';
+import { TransactionDetailModal } from '../Transactions';
 import './TokenDetailView.css';
 
 export function TokenDetailView({ token, onBack, onSend, onReceive, transactions }) {

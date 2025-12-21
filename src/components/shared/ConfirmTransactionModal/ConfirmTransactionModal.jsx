@@ -1,5 +1,6 @@
-import { formatAmount } from '../../../utils/crypto';
-import { CloseIcon, AlertIcon, SendIcon } from '../Icons';
+import { useState } from 'react';
+import { formatAmount, truncateAddress } from '../../../utils/crypto';
+import { CloseIcon, SendIcon, ChevronRightIcon, CheckIcon } from '../Icons';
 import './ConfirmTransactionModal.css';
 
 export function ConfirmTransactionModal({
@@ -9,85 +10,144 @@ export function ConfirmTransactionModal({
     recipient,
     amount,
     fee,
+    feeEstimates,
+    feeSpeed,
+    onFeeChange,
     tokenSymbol = 'OCT',
     isLoading = false
 }) {
+    const [showFeePopup, setShowFeePopup] = useState(false);
+
     if (!isOpen) return null;
 
     const total = parseFloat(amount) + parseFloat(fee);
 
+    const handleFeeSelect = (speed) => {
+        onFeeChange(speed);
+        setShowFeePopup(false);
+    };
+
+    const getSpeedLabel = () => {
+        if (feeSpeed === 'slow') return 'Slow';
+        if (feeSpeed === 'fast') return 'Fast';
+        return 'Normal';
+    };
+
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal confirm-tx-modal" onClick={e => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h3 className="modal-title">Confirm Transaction</h3>
-                    <button className="modal-close" onClick={onClose}>
-                        <CloseIcon size={20} />
-                    </button>
-                </div>
-
-                <div className="modal-body">
-                    {/* Warning */}
-                    <div className="confirm-warning">
-                        <AlertIcon size={20} />
-                        <p>Please verify the details before confirming. This action cannot be undone.</p>
+        <>
+            <div className="modal-overlay" onClick={onClose}>
+                <div className="modal confirm-tx-modal" onClick={e => e.stopPropagation()}>
+                    {/* Header with Send Icon */}
+                    <div className="ctm-header">
+                        <button className="ctm-close" onClick={onClose}>
+                            <CloseIcon size={18} />
+                        </button>
+                        <div className="ctm-icon">
+                            <SendIcon size={28} />
+                        </div>
+                        <h3 className="ctm-title">Send</h3>
+                        <p className="ctm-amount">
+                            <span className="ctm-amount-value">-{formatAmount(parseFloat(amount))}</span>
+                            <span className="ctm-amount-symbol">{tokenSymbol}</span>
+                        </p>
                     </div>
 
-                    {/* Transaction Details */}
-                    <div className="confirm-details">
-                        <div className="confirm-detail-row">
-                            <span className="confirm-label">To</span>
-                            <span className="confirm-value confirm-address">{recipient}</span>
+                    <div className="ctm-body">
+                        {/* Network Fee - Clickable */}
+                        <div className="ctm-row ctm-row-clickable" onClick={() => setShowFeePopup(true)}>
+                            <span className="ctm-label">Est. network fee</span>
+                            <div className="ctm-fee-info">
+                                <span className="ctm-fee-badge">{getSpeedLabel()}</span>
+                                <span className="ctm-fee-value">{formatAmount(fee)} {tokenSymbol}</span>
+                                <ChevronRightIcon size={14} />
+                            </div>
                         </div>
-                        <div className="confirm-detail-row">
-                            <span className="confirm-label">Amount</span>
-                            <span className="confirm-value confirm-amount">
-                                {formatAmount(amount)} {tokenSymbol}
-                            </span>
+
+                        {/* From */}
+                        <div className="ctm-row">
+                            <span className="ctm-label">From</span>
+                            <span className="ctm-value ctm-address">Your Wallet</span>
                         </div>
-                        <div className="confirm-detail-row">
-                            <span className="confirm-label">Network Fee</span>
-                            <span className="confirm-value">
-                                {formatAmount(fee)} {tokenSymbol}
-                            </span>
+
+                        {/* To */}
+                        <div className="ctm-row">
+                            <span className="ctm-label">To</span>
+                            <span className="ctm-value ctm-address">{truncateAddress(recipient, 12, 10)}</span>
                         </div>
-                        <div className="confirm-divider"></div>
-                        <div className="confirm-detail-row confirm-total">
-                            <span className="confirm-label">Total</span>
-                            <span className="confirm-value">
-                                {formatAmount(total)} {tokenSymbol}
-                            </span>
+
+                        {/* Total */}
+                        <div className="ctm-row ctm-row-total">
+                            <span className="ctm-label">Total</span>
+                            <span className="ctm-value ctm-total">{formatAmount(total)} {tokenSymbol}</span>
                         </div>
                     </div>
-                </div>
 
-                <div className="modal-footer">
-                    <button
-                        className="btn btn-secondary btn-full"
-                        onClick={onClose}
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        className="btn btn-primary btn-full"
-                        onClick={onConfirm}
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <>
-                                <span className="loading-spinner" style={{ width: 16, height: 16 }} />
-                                Sending...
-                            </>
-                        ) : (
-                            <>
-                                <SendIcon size={18} />
-                                Confirm Send
-                            </>
-                        )}
-                    </button>
+                    <div className="ctm-footer">
+                        <button className="btn btn-secondary" onClick={onClose} disabled={isLoading}>
+                            Back
+                        </button>
+                        <button className="btn btn-primary" onClick={onConfirm} disabled={isLoading}>
+                            {isLoading ? 'Sending...' : 'Send'}
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* Fee Selection Mini Popup */}
+            {showFeePopup && feeEstimates && (
+                <div className="fee-popup-overlay" onClick={() => setShowFeePopup(false)}>
+                    <div className="fee-popup" onClick={e => e.stopPropagation()}>
+                        <div className="fee-popup-header">
+                            <span className="fee-popup-title">Network Fee</span>
+                            <button className="fee-popup-close" onClick={() => setShowFeePopup(false)}>
+                                <CloseIcon size={16} />
+                            </button>
+                        </div>
+                        <div className="fee-popup-options">
+                            <button
+                                className={`fee-popup-option ${feeSpeed === 'slow' ? 'active' : ''}`}
+                                onClick={() => handleFeeSelect('slow')}
+                            >
+                                <div className="fee-popup-option-info">
+                                    <span className="fee-popup-option-label">Slow</span>
+                                    <span className="fee-popup-option-desc">Lower priority</span>
+                                </div>
+                                <div className="fee-popup-option-value">
+                                    <span>{formatAmount(feeEstimates.low)} {tokenSymbol}</span>
+                                    {feeSpeed === 'slow' && <CheckIcon size={16} />}
+                                </div>
+                            </button>
+                            <button
+                                className={`fee-popup-option ${feeSpeed === 'normal' ? 'active' : ''}`}
+                                onClick={() => handleFeeSelect('normal')}
+                            >
+                                <div className="fee-popup-option-info">
+                                    <span className="fee-popup-option-label">Normal</span>
+                                    <span className="fee-popup-option-desc">Recommended</span>
+                                </div>
+                                <div className="fee-popup-option-value">
+                                    <span>{formatAmount(feeEstimates.medium)} {tokenSymbol}</span>
+                                    {feeSpeed === 'normal' && <CheckIcon size={16} />}
+                                </div>
+                            </button>
+                            <button
+                                className={`fee-popup-option ${feeSpeed === 'fast' ? 'active' : ''}`}
+                                onClick={() => handleFeeSelect('fast')}
+                            >
+                                <div className="fee-popup-option-info">
+                                    <span className="fee-popup-option-label">Fast</span>
+                                    <span className="fee-popup-option-desc">Higher priority</span>
+                                </div>
+                                <div className="fee-popup-option-value">
+                                    <span>{formatAmount(feeEstimates.high)} {tokenSymbol}</span>
+                                    {feeSpeed === 'fast' && <CheckIcon size={16} />}
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }
+

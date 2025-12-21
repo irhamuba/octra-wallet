@@ -126,48 +126,7 @@
     color: var(--accent-primary);
 }
 
-.content-tabs {
-    display: flex;
-    gap: var(--space-lg);
-    padding: 0 var(--space-md);
-    margin-bottom: var(--space-lg);
-    border-bottom: 1px solid var(--border-subtle);
-}
-
-.content-tab {
-    position: relative;
-    padding: var(--space-md) 0;
-    background: transparent;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-tertiary);
-    cursor: pointer;
-    transition: color var(--transition-fast);
-}
-
-.content-tab:hover {
-    color: var(--text-secondary);
-}
-
-.content-tab.active {
-    color: var(--text-primary);
-}
-
-.content-tab.active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--accent-primary);
-    border-radius: 2px 2px 0 0;
-}
-
-.tab-content {
-    min-height: 150px;
-}
+/* Tabs styles moved to App.css */
 
 .empty-state {
     display: flex;

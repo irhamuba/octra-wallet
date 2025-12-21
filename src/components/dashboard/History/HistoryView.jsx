@@ -1,24 +1,47 @@
 import { useState, useMemo } from 'react';
 
 import { ChevronLeftIcon, HistoryIcon } from '../../shared/Icons';
-import { TransactionItem } from '../TransactionItem';
-import { TransactionDetailModal } from '../TransactionDetailModal';
+import { TransactionItem, TransactionDetailModal } from '../Transactions';
 import './HistoryView.css';
 
-export function HistoryView({ transactions, address, settings, onBack }) {
-    const [filter, setFilter] = useState('all'); // 'all' | 'sent' | 'received'
+// Skeleton loader for transactions
+function TransactionSkeleton() {
+    return (
+        <div className="tx-skeleton">
+            <div className="tx-skeleton-main">
+                <div className="tx-skeleton-icon"></div>
+                <div className="tx-skeleton-info">
+                    <div className="tx-skeleton-title"></div>
+                    <div className="tx-skeleton-subtitle"></div>
+                </div>
+            </div>
+            <div className="tx-skeleton-side">
+                <div className="tx-skeleton-amount"></div>
+                <div className="tx-skeleton-time"></div>
+            </div>
+        </div>
+    );
+}
+
+export function HistoryView({ transactions, address, settings, onBack, isLoading }) {
+    const [filter, setFilter] = useState('all'); // 'all' | 'sent' | 'received' | 'pending'
     const [selectedTx, setSelectedTx] = useState(null);
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
             if (filter === 'all') return true;
 
-            // Group outgoing transactions
+            // Pending filter - show only pending
+            if (filter === 'pending') {
+                return tx.status === 'pending';
+            }
+
+            // Group outgoing transactions (both pending and confirmed)
             if (filter === 'sent') {
                 return tx.type === 'out' || tx.type === 'shield' || tx.type === 'private';
             }
 
-            // Group incoming transactions
+            // Group incoming transactions (both pending and confirmed)
             if (filter === 'received') {
                 return tx.type === 'in' || tx.type === 'unshield' || tx.type === 'claim';
             }
@@ -26,6 +49,11 @@ export function HistoryView({ transactions, address, settings, onBack }) {
             return true;
         });
     }, [transactions, filter]);
+
+    // Count pending transactions
+    const pendingCount = useMemo(() => {
+        return transactions.filter(tx => tx.status === 'pending').length;
+    }, [transactions]);
 
     return (
         <div className="animate-fade-in">
@@ -63,9 +91,26 @@ export function HistoryView({ transactions, address, settings, onBack }) {
                 >
                     Received
                 </button>
+                {pendingCount > 0 && (
+                    <button
+                        className={`tab-pill tab-pill-pending ${filter === 'pending' ? 'active' : ''}`}
+                        onClick={() => setFilter('pending')}
+                    >
+                        Pending ({pendingCount})
+                    </button>
+                )}
             </div>
 
-            {filteredTransactions.length === 0 ? (
+            {/* Loading State */}
+            {isLoading ? (
+                <div className="tx-section">
+                    <div className="tx-list">
+                        <TransactionSkeleton />
+                        <TransactionSkeleton />
+                        <TransactionSkeleton />
+                    </div>
+                </div>
+            ) : filteredTransactions.length === 0 ? (
                 <div className="tx-empty py-3xl flex flex-col items-center">
                     <div style={{ margin: '0 0 16px 0', opacity: 0.8, color: 'var(--text-tertiary)' }}>
                         <svg width="120" height="120" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -83,7 +128,9 @@ export function HistoryView({ transactions, address, settings, onBack }) {
                             </g>
                         </svg>
                     </div>
-                    <p className="text-tertiary">No transactions found</p>
+                    <p className="text-tertiary">
+                        {filter === 'pending' ? 'No pending transactions' : 'No transactions found'}
+                    </p>
                     {(filter !== 'all') && (
                         <p className="text-xs text-tertiary mt-sm">
                             Try changing the filter

@@ -197,6 +197,7 @@ class OCS01Manager {
     constructor() {
         this.contracts = new Map(); // address -> OCS01Contract
         this.userContracts = new Map(); // userAddress -> Set of contractAddresses
+        this.loadCustomTokens();
     }
 
     /**
@@ -210,13 +211,44 @@ class OCS01Manager {
     }
 
     /**
-     * Add contract to user's list
+     * Load custom tokens from storage
+     */
+    loadCustomTokens() {
+        try {
+            const stored = localStorage.getItem('octra_custom_tokens');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                // parsed is { userAddress: [contractAddress1, ...] }
+                Object.entries(parsed).forEach(([userAddress, contracts]) => {
+                    this.userContracts.set(userAddress, new Set(contracts));
+                });
+            }
+        } catch (e) {
+            console.error('Failed to load custom tokens', e);
+        }
+    }
+
+    /**
+     * Add contract to user's list and persist
      */
     addUserContract(userAddress, contractAddress) {
         if (!this.userContracts.has(userAddress)) {
             this.userContracts.set(userAddress, new Set());
         }
         this.userContracts.get(userAddress).add(contractAddress);
+        this.saveCustomTokens();
+    }
+
+    saveCustomTokens() {
+        try {
+            const data = {};
+            this.userContracts.forEach((contracts, userAddress) => {
+                data[userAddress] = Array.from(contracts);
+            });
+            localStorage.setItem('octra_custom_tokens', JSON.stringify(data));
+        } catch (e) {
+            console.error('Failed to save custom tokens', e);
+        }
     }
 
     /**

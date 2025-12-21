@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { ChevronLeftIcon } from '../../../components/shared/Icons';
+import { ChevronLeftIcon } from '../../shared/Icons';
 import { RPC_URLS } from '../../../utils/rpc';
 import './NetworkSwitcher.css';
 

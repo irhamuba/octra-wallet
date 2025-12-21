@@ -6,7 +6,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-lg) var(--space-xl);
+    padding: var(--space-md) var(--space-lg);
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-subtle);
     height: var(--header-height);
@@ -38,7 +38,7 @@
 .header-actions {
     display: flex;
     align-items: center;
-    gap: var(--space-sm);
+    gap: 8px;
 }
 
 .header-icon-btn {
@@ -87,6 +87,31 @@
     font-size: 10px;
     font-family: var(--font-mono);
     color: var(--text-secondary);
+}
+
+/* Rename Wallet Modal specific adjustments */
+.rename-wallet-modal {
+    width: 100%;
+    max-width: 320px !important;
+    /* Smaller width */
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.rename-wallet-modal .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* Ensure toast doesn't overlap modal too aggressively */
+.toast {
+    z-index: 10000;
+    /* Higher than modal */
 }
 
 /* Wallet Content */
@@ -196,39 +221,7 @@
     color: var(--text-primary);
 }
 
-/* Content Tabs (OKX Style) */
-.content-tabs {
-    display: flex;
-    gap: var(--space-md);
-    margin-bottom: var(--space-xl);
-    border-bottom: 1px solid var(--border-subtle);
-}
-
-.content-tab {
-    padding: var(--space-md) var(--space-lg);
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    color: var(--text-secondary);
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.content-tab:hover {
-    color: var(--text-primary);
-}
-
-.content-tab.active {
-    color: var(--accent-primary);
-    border-bottom-color: var(--accent-primary);
-}
-
-/* Tab Content */
-.tab-content {
-    animation: fadeIn var(--transition-normal);
-}
+/* Tab Content moved to App.css or unused */
 
 /* Bottom Navigation - OKX Style */
 .bottom-nav {
@@ -284,108 +277,9 @@
 }
 
 /* Wallet Switcher */
-.wallet-logo-clickable {
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
+/* Wallet Switcher styles removed - using shared WalletSelector */
 
-.wallet-logo-clickable:hover {
-    opacity: 0.8;
-}
-
-.wallet-switcher-dropdown {
-    position: absolute;
-    top: calc(var(--header-height) - 8px);
-    left: var(--space-xl);
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg);
-    min-width: 280px;
-    max-height: 400px;
-    overflow-y: auto;
-    z-index: 1000;
-}
-
-.wallet-switcher-header {
-    padding: var(--space-lg);
-    border-bottom: 1px solid var(--border-subtle);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.wallet-switcher-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.wallet-switcher-list {
-    padding: var(--space-sm);
-}
-
-.wallet-switcher-item {
-    display: flex;
-    align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-md);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.wallet-switcher-item:hover {
-    background: var(--bg-hover);
-}
-
-.wallet-switcher-item.active {
-    background: var(--bg-elevated);
-}
-
-.wallet-switcher-avatar {
-    width: 40px;
-    height: 40px;
-    background: var(--bg-elevated);
-    border-radius: var(--radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-secondary);
-    font-weight: 600;
-}
-
-.wallet-switcher-item.active .wallet-switcher-avatar {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    border: 1.5px solid var(--border-default);
-}
-
-.wallet-switcher-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.wallet-switcher-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.wallet-switcher-address {
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--text-secondary);
-}
-
-.wallet-switcher-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-}
-
+/* Overlay removed */
 .rotate-180 {
     transform: rotate(180deg);
 }

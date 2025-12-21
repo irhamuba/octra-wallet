@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { CloseIcon } from '../../shared/Icons';
 import { isValidAddress } from '../../../utils/crypto';
-import { addToken } from '../../../features/tokens/tokenService';
+import { ocs01Manager } from '../../../services/OCS01TokenService';
 
-export function AddTokenModal({ isOpen, onClose, rpcClient, onSuccess }) {
+export function AddCustomTokenModal({ isOpen, onClose, rpcClient, onSuccess, wallet }) {
     const [contractAddress, setContractAddress] = useState('');
     const [symbol, setSymbol] = useState('');
     const [name, setName] = useState('');
@@ -29,14 +29,15 @@ export function AddTokenModal({ isOpen, onClose, rpcClient, onSuccess }) {
             return;
         }
 
+        if (!wallet?.address) {
+            setError('Wallet not connected');
+            return;
+        }
+
         setLoading(true);
         try {
-            await addToken({
-                contractAddress: contractAddress.trim(),
-                symbol: symbol.trim().toUpperCase(),
-                name: name.trim() || symbol.trim().toUpperCase(),
-                decimals: parseInt(decimals) || 6
-            }, rpcClient);
+            // Add to manager (persists to localStorage)
+            ocs01Manager.addUserContract(wallet.address, contractAddress.trim());
 
             // Reset form
             setContractAddress('');
@@ -48,6 +49,7 @@ export function AddTokenModal({ isOpen, onClose, rpcClient, onSuccess }) {
             onSuccess?.();
             onClose();
         } catch (err) {
+            console.error(err);
             setError(err.message || 'Failed to add token');
         } finally {
             setLoading(false);

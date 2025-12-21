@@ -9,8 +9,8 @@ import {
     CloseIcon,
     SendIcon,
     RefreshIcon
-} from '../../../components/shared/Icons';
-import { fetchNFTs, parseNFTMetadata } from '../nftService';
+} from '../../shared/Icons';
+import { fetchNFTs, parseNFTMetadata } from './nftService';
 import './NFTGallery.css';
 import { truncateAddress } from '../../../utils/crypto';
 

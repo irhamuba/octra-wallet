@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Lottie from 'lottie-react';
-import successAnimation from '../../../assets/animations/step-complete.json';
-import sendingAnimation from '../../../assets/animations/sending.json';
+import successAnimation from '../../welcome/animations/step-complete.json';
+import sendingAnimation from './animations/sending.json';
 import { isValidAddress, formatAmount, truncateAddress } from '../../../utils/crypto';
 import { getRpcClient } from '../../../utils/rpc';
 import { addToTxHistory } from '../../../utils/storage';
@@ -31,8 +31,9 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
     const [txHash, setTxHash] = useState('');
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
 
-    // Fee state - automatically use RPC fee
-    const [autoFee, setAutoFee] = useState(0.003); // Default fallback
+    // Fee state - OU based: Slow=1000, Normal=2000, Fast=3000 (fee = OU/1000000 OCT)
+    const [feeEstimates, setFeeEstimates] = useState({ low: 0.001, medium: 0.002, high: 0.003 });
+    const [feeSpeed, setFeeSpeed] = useState('normal'); // 'slow' | 'normal' | 'fast'
     const [isLoadingFee, setIsLoadingFee] = useState(false);
 
     // Confirmation modal state
@@ -48,7 +49,8 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
         }
     }, [tokensFromParent]);
 
-    const fee = autoFee;
+    // Calculate fee based on selected speed
+    const fee = feeSpeed === 'slow' ? feeEstimates.low : feeSpeed === 'fast' ? feeEstimates.high : feeEstimates.medium;
     const total = parseFloat(amount || 0) + fee;
     const isValid = recipient && isValidAddress(recipient) && amount && parseFloat(amount) > 0 && total <= tokenBalance;
 
@@ -89,9 +91,13 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                 }
             }
 
-            // Fetch fee estimate - use medium as auto fee
+            // Fetch fee estimate - store all levels
             const fees = await rpcClient.getFeeEstimate(1);
-            setAutoFee(Math.max(fees.medium, 0.003)); // Use medium speed as automatic
+            setFeeEstimates({
+                low: fees.low,
+                medium: fees.medium,
+                high: fees.high
+            });
         } catch (err) {
             console.error('Failed to fetch data:', err);
         } finally {
@@ -115,10 +121,13 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                 try {
                     const rpcClient = getRpcClient();
                     const fees = await rpcClient.getFeeEstimate(parseFloat(amount));
-                    setAutoFee(Math.max(fees.medium, 0.003)); // Auto use medium
+                    setFeeEstimates({
+                        low: fees.low,
+                        medium: fees.medium,
+                        high: fees.high
+                    });
                 } catch (err) {
                     console.error('Failed to update fee:', err);
-                    setAutoFee(0.003); // Fallback
                 }
                 setIsLoadingFee(false);
             }
@@ -348,7 +357,6 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                         )}
                     </div>
 
-
                     {parseFloat(amount) > 0 && (
                         <div className="card mb-lg">
                             <div className="confirm-row">
@@ -573,7 +581,7 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                 </div>
             )}
 
-            {/* Confirmation Modal - Hide when sending starts */}
+            {/* Confirmation Modal - With Fee Selection */}
             <ConfirmTransactionModal
                 isOpen={showConfirmModal && step !== 'sending'}
                 onClose={() => setShowConfirmModal(false)}
@@ -581,6 +589,9 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                 recipient={recipient}
                 amount={amount}
                 fee={fee}
+                feeEstimates={feeEstimates}
+                feeSpeed={feeSpeed}
+                onFeeChange={setFeeSpeed}
                 tokenSymbol={selectedToken?.symbol || 'OCT'}
                 isLoading={false}
             />

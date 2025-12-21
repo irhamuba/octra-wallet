@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatAmount } from '../../../utils/crypto';
+import { formatAmount, isValidAddress } from '../../../utils/crypto';
 import {
     ShieldIcon,
     UnshieldIcon,
@@ -185,12 +185,8 @@ export function PrivateTransferModal({ isOpen, onClose, encryptedBalance, onSubm
         setAmount(String(encryptedBalance));
     };
 
-    const validateAddress = (addr) => {
-        return addr && addr.startsWith('oct') && addr.length === 47;
-    };
-
     const handleNext = () => {
-        if (!validateAddress(recipient)) return;
+        if (!isValidAddress(recipient)) return;
 
         const amountNum = parseFloat(amount);
         if (isNaN(amountNum) || amountNum <= 0) return;

@@ -1,5 +1,5 @@
-import { formatAmount, truncateAddress } from '../../../utils/crypto';
-import { ArrowUpRightIcon, ArrowDownLeftIcon, ShieldIcon, UnshieldIcon, PrivateTransferIcon, ClaimIcon } from '../../shared/Icons';
+import { formatAmount, truncateAddress } from '../../../../utils/crypto';
+import { ArrowUpRightIcon, ArrowDownLeftIcon, ShieldIcon, UnshieldIcon, PrivateTransferIcon, ClaimIcon } from '../../../../components/shared/Icons';
 import './TransactionItem.css';
 
 function formatTimeAgo(timestamp) {
@@ -56,8 +56,10 @@ export function TransactionItem({ tx, onClick }) {
             break;
     }
 
+    const isPending = tx.status === 'pending';
+
     return (
-        <div className="tx-item" onClick={onClick}>
+        <div className={`tx-item ${isPending ? 'pending' : ''}`} onClick={onClick}>
             <div className="tx-item-main">
                 <div className={`tx-item-icon ${iconClass}`}>
                     <Icon size={16} />

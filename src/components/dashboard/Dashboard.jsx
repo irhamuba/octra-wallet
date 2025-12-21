@@ -6,26 +6,18 @@
 import { useState, useEffect } from 'react';
 import './Dashboard.css';
 import {
-    UbaLogo,
-    OctraLogo,
     SendIcon,
     ReceiveIcon,
     HistoryIcon,
-    RefreshIcon,
     CloseIcon,
     SettingsIcon,
     WalletIcon,
-    EditIcon,
-    ChevronDownIcon,
-    CheckIcon,
     PrivacyIcon,
-    PlusIcon,
-    ImportIcon,
-    KeyIcon,
-    InfoIcon,
-    CopyIcon
+    CheckIcon
 } from '../shared/Icons';
-import { truncateAddress } from '../../utils/crypto';
+import { WalletSelector, WalletHeader } from '../shared/WalletSelector';
+import { Toast } from '../shared/Toast';
+import { AddWalletModal } from './AddWalletModal';
 import { getRpcClient } from '../../utils/rpc';
 
 // Sub-components
@@ -37,19 +29,26 @@ import { PrivacyView } from './Privacy';
 import { TokenDetailView } from './TokenDetail';
 
 // Feature components
-import { TransactionHistory } from '../../features/history';
-import { NFTGallery } from '../../features/nft';
+import { NFTGallery } from './NFT';
 
 export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, onAddWallet, onRenameWallet, balance, nonce, transactions, allTokens, isLoadingTokens, onRefresh, isRefreshing, settings, onUpdateSettings, onOpenSettings, onLock }) {
     const [view, setView] = useState('home'); // 'home' | 'send' | 'receive' | 'history' | 'nft' | 'tokens' | 'addressbook'
     const [copied, setCopied] = useState(false);
+    const [headerCopied, setHeaderCopied] = useState(false);
     const [showWalletSwitcher, setShowWalletSwitcher] = useState(false);
-    const [currentNetwork, setCurrentNetwork] = useState('testnet');
+
+    const handleHeaderCopy = async () => {
+        if (wallet?.address) {
+            try {
+                await navigator.clipboard.writeText(wallet.address);
+                setHeaderCopied(true);
+                setTimeout(() => setHeaderCopied(false), 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+        }
+    };
     const [showAddWallet, setShowAddWallet] = useState(false);
-    const [addWalletMode, setAddWalletMode] = useState(null); // 'create' | 'import'
-    const [importPrivateKey, setImportPrivateKey] = useState('');
-    const [addWalletError, setAddWalletError] = useState('');
-    const [isAddingWallet, setIsAddingWallet] = useState(false);
 
     // Session-based balance visibility (resets on refresh)
     const [isBalanceHidden, setIsBalanceHidden] = useState(false);
@@ -68,7 +67,7 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
     // Show toast notification
     const showToast = (message, type = 'info') => {
         setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
+        // Toast component handles timeout
     };
 
     // Reset to home view when wallet changes
@@ -108,12 +107,6 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
         setView('send');
     };
 
-    const handleQuickSend = (address) => {
-        // Pre-fill send view with address
-        setView('send');
-        // TODO: Pass address to SendView
-    };
-
     const handleSelectWallet = (index) => {
         onSwitchWallet(index);
         setShowWalletSwitcher(false);
@@ -122,71 +115,11 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
     const handleOpenAddWallet = () => {
         setShowWalletSwitcher(false);
         setShowAddWallet(true);
-        setAddWalletMode(null);
-        setImportPrivateKey('');
-        setAddWalletError('');
     };
 
-    const handleCreateNewWallet = async () => {
-        setIsAddingWallet(true);
-        setAddWalletError('');
-
-        try {
-            await onAddWallet({ type: 'create' });
-            setShowAddWallet(false);
-            setAddWalletMode(null);
-        } catch (err) {
-            setAddWalletError(err.message || 'Failed to create wallet');
-        }
-
-        setIsAddingWallet(false);
-    };
-
-    const handleImportWallet = async () => {
-        if (!importPrivateKey.trim()) {
-            setAddWalletError('Please enter private key');
-            return;
-        }
-
-        setIsAddingWallet(true);
-        setAddWalletError('');
-
-        try {
-            await onAddWallet({ type: 'import', privateKey: importPrivateKey.trim() });
-            setShowAddWallet(false);
-            setAddWalletMode(null);
-            setImportPrivateKey('');
-        } catch (err) {
-            setAddWalletError(err.message || 'Failed to import wallet');
-        }
-
-        setIsAddingWallet(false);
-    };
-
-    const handleImportMnemonicWallet = async () => {
-        if (!importPrivateKey.trim()) {
-            setAddWalletError('Please enter recovery phrase');
-            return;
-        }
-
-        setIsAddingWallet(true);
-        setAddWalletError('');
-
-        try {
-            await onAddWallet({ type: 'import_mnemonic', mnemonic: importPrivateKey.trim() });
-            setShowAddWallet(false);
-            setAddWalletMode(null);
-            setImportPrivateKey('');
-        } catch (err) {
-            setAddWalletError(err.message || 'Failed to import wallet from phrase');
-        }
-
-        setIsAddingWallet(false);
-    };
-
-    // Rename wallet handlers
     const handleOpenRename = (index, currentName, e) => {
-        e.stopPropagation(); // Don't select wallet when clicking edit
+        if (e && e.stopPropagation) e.stopPropagation();
+        setShowWalletSwitcher(false); // Close the dropdown
         setRenameWalletIndex(index);
         setRenameWalletName(currentName || `Wallet ${index + 1}`);
         setShowRenameModal(true);
@@ -205,85 +138,48 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
         <>
             {/* Header */}
             <header className="wallet-header">
-                {/* Wallet Logo - Click to show wallet switcher */}
-                <div className="flex items-center gap-xs">
-                    <div
-                        className="wallet-logo wallet-logo-clickable"
-                        onClick={() => setShowWalletSwitcher(!showWalletSwitcher)}
-                    >
-                        <div className="wallet-logo-icon">
-                            <UbaLogo size={18} />
-                        </div>
-                        <span className="wallet-logo-text">
-                            {(wallet.name || `Wallet ${activeWalletIndex + 1}`).slice(0, 8)}
-                        </span>
-                        <ChevronDownIcon size={14} className={showWalletSwitcher ? 'rotate-180' : ''} />
-                    </div>
-                </div>
-                <div className="header-actions">
-                    {/* Address Copy Pill - Moved to right */}
-                    <div
-                        className="header-address-pill"
-                        onClick={handleCopyAddress}
-                        title="Copy Address"
-                    >
-                        <span className="address-pill-text">{truncateAddress(wallet.address, 4, 4)}</span>
-                        {copied ? (
-                            <CheckIcon size={10} className="text-success" />
-                        ) : (
-                            <CopyIcon size={10} className="text-tertiary" />
-                        )}
-                    </div>
+                <div style={{ position: 'relative' }}>
+                    <WalletHeader
+                        wallet={wallet}
+                        wallets={wallets}
+                        onOpenSelector={() => setShowWalletSwitcher(!showWalletSwitcher)}
+                        onCopyAddress={() => {/* Handled inside component */ }}
+                    />
 
+                    {/* Compact Dropdown Menu */}
+                    {showWalletSwitcher && (
+                        <div className="wallet-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                            <WalletSelector
+                                wallets={wallets.map((w, i) => ({
+                                    ...w,
+                                    balance: i === activeWalletIndex ? balance : (w.lastKnownBalance || 0)
+                                }))}
+                                activeIndex={activeWalletIndex}
+                                onSelect={handleSelectWallet}
+                                onAddWallet={handleOpenAddWallet}
+                                onEditWallet={(idx) => handleOpenRename(idx, wallets[idx].name, { stopPropagation: () => { } })}
+                                onClose={() => setShowWalletSwitcher(false)}
+                            />
+                        </div>
+                    )}
+                </div>
+
+                <div className="header-actions">
+                    <button className="header-icon-btn" onClick={handleHeaderCopy} title="Copy Address">
+                        {headerCopied ? <CheckIcon size={18} /> : <WalletIcon size={18} />}
+                    </button>
                     <button className="header-icon-btn" onClick={onOpenSettings}>
                         <SettingsIcon size={18} />
                     </button>
                 </div>
-
-                {/* Wallet Switcher Dropdown */}
-                {showWalletSwitcher && (
-                    <div className="wallet-switcher-dropdown animate-fade-in">
-                        <div className="wallet-switcher-header">
-                            <span className="text-sm font-semibold">Wallets</span>
-                            <button className="add-wallet-btn" onClick={handleOpenAddWallet}>
-                                <span>+</span>
-                            </button>
-                        </div>
-                        <div className="wallet-switcher-list">
-                            {wallets && wallets.map((w, idx) => (
-                                <div
-                                    key={w.id || idx}
-                                    className={`wallet-switcher-item ${idx === activeWalletIndex ? 'active' : ''}`}
-                                    onClick={() => handleSelectWallet(idx)}
-                                >
-                                    <div
-                                        className="wallet-switcher-avatar"
-                                        onClick={(e) => handleOpenRename(idx, w.name, e)}
-                                    >
-                                        <div className="wallet-switcher-icon">
-                                            <WalletIcon size={16} />
-                                        </div>
-                                        <div className="wallet-switcher-edit">
-                                            <EditIcon size={10} />
-                                        </div>
-                                    </div>
-                                    <div className="wallet-switcher-info">
-                                        <span className="wallet-switcher-name">{w.name || `Wallet ${idx + 1}`}</span>
-                                        <span className="wallet-switcher-address">{truncateAddress(w.address, 6)}</span>
-                                    </div>
-                                    {idx === activeWalletIndex && (
-                                        <CheckIcon size={16} className="text-accent" />
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </header>
 
-            {/* Click outside to close dropdown */}
+            {/* Transparent Overlay for closing dropdown */}
             {showWalletSwitcher && (
-                <div className="wallet-switcher-overlay" onClick={() => setShowWalletSwitcher(false)} />
+                <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'transparent' }}
+                    onClick={() => setShowWalletSwitcher(false)}
+                />
             )}
 
             {/* Rename Wallet Modal */}
@@ -329,164 +225,12 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                 </div>
             )}
 
-
             {/* Add Wallet Modal */}
             {showAddWallet && (
-                <div className="modal-overlay" onClick={() => setShowAddWallet(false)}>
-                    <div className="modal-content add-wallet-modal" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3 className="text-lg font-semibold">
-                                {addWalletMode === null && 'Add Wallet'}
-                                {addWalletMode === 'create' && 'Create New Wallet'}
-                                {addWalletMode === 'import' && 'Import Wallet'}
-                            </h3>
-                            <button className="modal-close" onClick={() => setShowAddWallet(false)}>
-                                <CloseIcon size={20} />
-                            </button>
-                        </div>
-
-                        {/* Step 1: Choose mode */}
-                        {addWalletMode === null && (
-                            <div className="add-wallet-options">
-                                <button className="add-wallet-option" onClick={() => setAddWalletMode('create')}>
-                                    <div className="add-wallet-option-icon">
-                                        <PlusIcon size={24} />
-                                    </div>
-                                    <div className="add-wallet-option-info">
-                                        <span className="add-wallet-option-title">Create New Wallet</span>
-                                        <span className="add-wallet-option-desc">Generate a new wallet automatically</span>
-                                    </div>
-                                </button>
-                                <button className="add-wallet-option" onClick={() => setAddWalletMode('import_mnemonic')}>
-                                    <div className="add-wallet-option-icon">
-                                        <ImportIcon size={24} />
-                                    </div>
-                                    <div className="add-wallet-option-info">
-                                        <span className="add-wallet-option-title">Import Recovery Phrase</span>
-                                        <span className="add-wallet-option-desc">Use 12-word recovery phrase</span>
-                                    </div>
-                                </button>
-                                <button className="add-wallet-option" onClick={() => setAddWalletMode('import')}>
-                                    <div className="add-wallet-option-icon">
-                                        <KeyIcon size={24} />
-                                    </div>
-                                    <div className="add-wallet-option-info">
-                                        <span className="add-wallet-option-title">Import Private Key</span>
-                                        <span className="add-wallet-option-desc">Use existing private key</span>
-                                    </div>
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Create new wallet */}
-                        {addWalletMode === 'create' && (
-                            <div className="add-wallet-form">
-                                <p className="text-secondary text-sm mb-lg">
-                                    A new wallet will be created automatically. Make sure to backup the seed phrase from Settings later.
-                                </p>
-
-                                {addWalletError && (
-                                    <p className="text-error text-sm mb-lg">{addWalletError}</p>
-                                )}
-
-                                <div className="flex gap-md">
-                                    <button
-                                        className="btn btn-secondary flex-1"
-                                        onClick={() => setAddWalletMode(null)}
-                                        disabled={isAddingWallet}
-                                    >
-                                        Back
-                                    </button>
-                                    <button
-                                        className="btn btn-primary flex-1"
-                                        onClick={handleCreateNewWallet}
-                                        disabled={isAddingWallet}
-                                    >
-                                        {isAddingWallet ? 'Creating...' : 'Create Wallet'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Import with private key */}
-                        {addWalletMode === 'import' && (
-                            <div className="add-wallet-form">
-                                <div className="form-group">
-                                    <label className="form-label">Private Key (Base64)</label>
-                                    <textarea
-                                        className="input input-mono"
-                                        value={importPrivateKey}
-                                        onChange={(e) => setImportPrivateKey(e.target.value)}
-                                        placeholder="Paste your private key here..."
-                                        rows={3}
-                                    />
-                                </div>
-
-                                {addWalletError && (
-                                    <p className="text-error text-sm mb-lg">{addWalletError}</p>
-                                )}
-
-                                <div className="flex gap-md">
-                                    <button
-                                        className="btn btn-secondary flex-1"
-                                        onClick={() => setAddWalletMode(null)}
-                                        disabled={isAddingWallet}
-                                    >
-                                        Back
-                                    </button>
-                                    <button
-                                        className="btn btn-primary flex-1"
-                                        onClick={handleImportWallet}
-                                        disabled={isAddingWallet || !importPrivateKey.trim()}
-                                    >
-                                        {isAddingWallet ? 'Importing...' : 'Import Wallet'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Import with Mnemonic */}
-                        {addWalletMode === 'import_mnemonic' && (
-                            <div className="add-wallet-form">
-                                <div className="form-group">
-                                    <label className="form-label">Recovery Phrase (12 words)</label>
-                                    <textarea
-                                        className="input input-mono"
-                                        value={importPrivateKey} // Reuse state variable for simplicity or create new one
-                                        onChange={(e) => setImportPrivateKey(e.target.value)}
-                                        placeholder="word1 word2 word3 ..."
-                                        rows={3}
-                                    />
-                                    <p className="form-hint">Separate words with spaces</p>
-                                </div>
-
-                                {addWalletError && (
-                                    <p className="text-error text-sm mb-lg">{addWalletError}</p>
-                                )}
-
-                                <div className="flex gap-md">
-                                    <button
-                                        className="btn btn-secondary flex-1"
-                                        onClick={() => {
-                                            setAddWalletMode(null);
-                                            setImportPrivateKey('');
-                                        }}
-                                        disabled={isAddingWallet}
-                                    >
-                                        Back
-                                    </button>
-                                    <button
-                                        className="btn btn-primary flex-1"
-                                        onClick={handleImportMnemonicWallet}
-                                        disabled={isAddingWallet || !importPrivateKey.trim()}
-                                    >
-                                        {isAddingWallet ? 'Importing...' : 'Import Wallet'}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <AddWalletModal
+                    onClose={() => setShowAddWallet(false)}
+                    onAddWallet={onAddWallet}
+                />
             )}
 
             {/* Content */}
@@ -510,6 +254,7 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                         onToggleBalance={() => setIsBalanceHidden(!isBalanceHidden)}
                         allTokens={allTokens}
                         isLoadingTokens={isLoadingTokens}
+                        onRefresh={onRefresh}
                     />
                 )}
 
@@ -540,6 +285,7 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                         address={wallet.address}
                         settings={settings}
                         onBack={handleBack}
+                        isLoading={isRefreshing && transactions.length === 0}
                     />
                 )}
 
@@ -559,7 +305,6 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                     />
                 )}
 
-
                 {view === 'token-detail' && selectedToken && (
                     <TokenDetailView
                         token={selectedToken}
@@ -570,8 +315,6 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                         transactions={transactions}
                     />
                 )}
-
-
             </div>
 
             {/* Bottom Navigation - OKX Style */}
@@ -600,14 +343,11 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
 
             {/* Toast Notification */}
             {toast && (
-                <div className={`toast toast-${toast.type}`}>
-                    <span className="toast-icon">
-                        {toast.type === 'success' ? <CheckIcon size={14} /> :
-                            toast.type === 'error' ? <CloseIcon size={14} /> :
-                                <InfoIcon size={14} />}
-                    </span>
-                    <span className="toast-message">{toast.message}</span>
-                </div>
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={() => setToast(null)}
+                />
             )}
         </>
     );

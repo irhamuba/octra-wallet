@@ -17,14 +17,15 @@ import {
     CopyIcon,
     CheckIcon,
     LockIcon,
-    SignatureIcon
+    SignatureIcon,
+    AlertIcon
 } from '../shared/Icons';
 import { truncateAddress } from '../../utils/crypto';
 import { exportWallet, verifyPassword, changePassword } from '../../utils/storage';
-import { NetworkSwitcher } from '../../features/settings/components/NetworkSwitcher';
+import { NetworkSwitcher } from './NetworkSwitcher/NetworkSwitcher';
 
 export function SettingsScreen({ wallet, settings, password, onUpdateSettings, onDisconnect, onBack }) {
-    const [view, setView] = useState('main'); // 'main' | 'network' | 'export' | 'change-password' | 'sign-message'
+    const [view, setView] = useState('main'); // 'main' | 'network' | 'export' | 'recovery-phrase' | 'change-password' | 'sign-message'
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [copied, setCopied] = useState('');
 
@@ -87,6 +88,16 @@ export function SettingsScreen({ wallet, settings, password, onUpdateSettings, o
     if (view === 'change-password') {
         return (
             <ChangePasswordSettings
+                onBack={() => setView('main')}
+            />
+        );
+    }
+
+    if (view === 'recovery-phrase') {
+        return (
+            <RecoveryPhraseSettings
+                wallet={wallet}
+                password={password}
                 onBack={() => setView('main')}
             />
         );
@@ -232,38 +243,15 @@ export function SettingsScreen({ wallet, settings, password, onUpdateSettings, o
                     <div className="settings-section">
                         <div className="settings-section-title">Recovery Phrase</div>
 
-                        <div className="card">
-                            <div className="flex items-center justify-between mb-md">
-                                <span className="text-sm font-medium">12-word phrase</span>
-                                <button
-                                    className="btn btn-ghost btn-sm gap-sm"
-                                    onClick={() => setShowPrivateKey(!showPrivateKey)}
-                                >
-                                    {showPrivateKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                                    {showPrivateKey ? 'Hide' : 'Show'}
-                                </button>
-                            </div>
-
-                            {showPrivateKey && (
-                                <div className="mnemonic-grid animate-fade-in">
-                                    {wallet.mnemonic.map((word, index) => (
-                                        <div key={index} className="mnemonic-word">
-                                            <span className="mnemonic-word-num">{index + 1}</span>
-                                            <span className="mnemonic-word-text">{word}</span>
-                                        </div>
-                                    ))}
+                        <div className="settings-item" onClick={() => setView('recovery-phrase')}>
+                            <div className="flex items-center gap-md">
+                                <KeyIcon size={20} />
+                                <div className="settings-item-content">
+                                    <div className="settings-item-label">12-word phrase</div>
+                                    <div className="settings-item-value">Requires password</div>
                                 </div>
-                            )}
-
-                            {showPrivateKey && (
-                                <button
-                                    className="btn btn-secondary btn-sm btn-full mt-md gap-sm"
-                                    onClick={() => handleCopy(wallet.mnemonic.join(' '), 'mnemonic')}
-                                >
-                                    {copied === 'mnemonic' ? <CheckIcon size={16} /> : <CopyIcon size={16} />}
-                                    {copied === 'mnemonic' ? 'Copied!' : 'Copy Phrase'}
-                                </button>
-                            )}
+                            </div>
+                            <ChevronRightIcon size={18} className="text-tertiary" />
                         </div>
                     </div>
                 )}
@@ -519,50 +507,45 @@ function ExportSettings({ wallet, password, onBack }) {
                     </>
                 ) : (
                     <>
-                        <div className="card mb-xl" style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning)' }}>
-                            <p className="font-semibold text-warning mb-sm">⚠️ Warning</p>
-                            <p className="text-sm text-warning">
-                                Never share your private key with anyone. Anyone with this key has full control of your wallet.
-                            </p>
-                        </div>
-
-                        <div className="card mb-xl">
-                            <div className="flex items-center justify-between mb-md">
-                                <span className="text-sm text-secondary">Private Key (Base64)</span>
-                                <button
-                                    className="btn btn-ghost btn-sm gap-sm"
-                                    onClick={() => setShowKey(!showKey)}
-                                >
-                                    {showKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                                    {showKey ? 'Hide' : 'Reveal'}
-                                </button>
-                            </div>
-
-                            <div
-                                className="p-md rounded-md"
-                                style={{
-                                    background: 'var(--bg-primary)',
-                                    filter: showKey ? 'none' : 'blur(8px)',
-                                    userSelect: showKey ? 'all' : 'none',
-                                    overflow: 'hidden',
-                                    wordBreak: 'break-all'
-                                }}
-                            >
-                                <p className="text-mono text-sm" style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
-                                    {wallet.privateKeyB64}
-                                </p>
+                        {/* Animated Icon */}
+                        <div className="security-icon-container">
+                            <div className="security-icon-pulse">
+                                <KeyIcon size={32} />
                             </div>
                         </div>
 
-                        {showKey && (
+                        {/* Security Warning - Professional */}
+                        <div className="security-notice">
+                            <p>Never share your private key. Anyone with this key has full control of your wallet.</p>
+                        </div>
+
+                        {/* Private Key Display */}
+                        <div
+                            className="secret-display"
+                            style={{
+                                filter: showKey ? 'none' : 'blur(6px)',
+                                userSelect: showKey ? 'all' : 'none'
+                            }}
+                        >
+                            <p className="text-mono text-sm">{wallet.privateKeyB64}</p>
+                        </div>
+
+                        {/* Action row - Show (20%) + Copy (80%) */}
+                        <div className="secret-actions">
                             <button
-                                className="btn btn-secondary btn-lg btn-full gap-sm animate-fade-in"
+                                className="secret-btn secret-btn-toggle"
+                                onClick={() => setShowKey(!showKey)}
+                            >
+                                {showKey ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                            </button>
+                            <button
+                                className={`secret-btn secret-btn-copy ${copied ? 'copied' : ''}`}
                                 onClick={handleCopy}
                             >
                                 {copied ? <CheckIcon size={18} /> : <CopyIcon size={18} />}
-                                {copied ? 'Copied!' : 'Copy Private Key'}
+                                <span>{copied ? 'Copied!' : 'Copy Private Key'}</span>
                             </button>
-                        )}
+                        </div>
                     </>
                 )}
             </div>
@@ -712,6 +695,159 @@ function ChangePasswordSettings({ onBack }) {
                 >
                     {isLoading ? <span className="loading-spinner" /> : 'Change Password'}
                 </button>
+            </div>
+        </>
+    );
+}
+
+function RecoveryPhraseSettings({ wallet, onBack }) {
+    const [showPhrase, setShowPhrase] = useState(false);
+    const [showInputPassword, setShowInputPassword] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [inputPassword, setInputPassword] = useState('');
+    const [isVerified, setIsVerified] = useState(false);
+    const [error, setError] = useState('');
+    const [isVerifying, setIsVerifying] = useState(false);
+
+    const handleVerifyPassword = async () => {
+        if (!inputPassword.trim()) {
+            setError('Please enter your password');
+            return;
+        }
+
+        setIsVerifying(true);
+        setError('');
+
+        try {
+            const isValid = await verifyPassword(inputPassword);
+            if (isValid) {
+                setIsVerified(true);
+            } else {
+                setError('Incorrect password');
+            }
+        } catch (err) {
+            setError('Verification failed');
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(wallet.mnemonic.join(' '));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            console.error('Failed to copy');
+        }
+    };
+
+    return (
+        <>
+            <header className="wallet-header">
+                <div className="flex items-center gap-md">
+                    <button className="header-icon-btn" onClick={onBack}>
+                        <ChevronLeftIcon size={20} />
+                    </button>
+                    <span className="text-lg font-semibold">Recovery Phrase</span>
+                </div>
+            </header>
+
+            <div className="wallet-content animate-fade-in">
+                {!isVerified ? (
+                    <>
+                        <div className="text-center mb-xl">
+                            <div className="lock-icon-container" style={{ margin: '0 auto var(--space-lg)' }}>
+                                <LockIcon size={28} />
+                            </div>
+                            <h3 className="text-lg font-semibold mb-sm">Verify Password</h3>
+                            <p className="text-secondary text-sm">
+                                Enter your wallet password to view your recovery phrase
+                            </p>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Password</label>
+                            <div className="input-with-icon">
+                                <input
+                                    type={showInputPassword ? 'text' : 'password'}
+                                    className={`input input-lg ${error ? 'input-error' : ''}`}
+                                    value={inputPassword}
+                                    onChange={(e) => {
+                                        setInputPassword(e.target.value);
+                                        setError('');
+                                    }}
+                                    placeholder="Enter your password"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleVerifyPassword()}
+                                />
+                                <button
+                                    type="button"
+                                    className="input-icon-btn"
+                                    onClick={() => setShowInputPassword(!showInputPassword)}
+                                    tabIndex={-1}
+                                >
+                                    {showInputPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                </button>
+                            </div>
+                            {error && <p className="form-error">{error}</p>}
+                        </div>
+
+                        <button
+                            className="btn btn-primary btn-lg btn-full"
+                            onClick={handleVerifyPassword}
+                            disabled={isVerifying || !inputPassword.trim()}
+                        >
+                            {isVerifying ? <span className="loading-spinner" /> : 'Verify'}
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        {/* Animated Icon */}
+                        <div className="security-icon-container">
+                            <div className="security-icon-pulse">
+                                <KeyIcon size={32} />
+                            </div>
+                        </div>
+
+                        {/* Security Warning - Professional */}
+                        <div className="security-notice">
+                            <p>Never share your recovery phrase. Anyone with this phrase can access your wallet.</p>
+                        </div>
+
+                        {/* Mnemonic grid */}
+                        <div
+                            className="mnemonic-grid"
+                            style={{
+                                filter: showPhrase ? 'none' : 'blur(6px)',
+                                userSelect: showPhrase ? 'text' : 'none'
+                            }}
+                        >
+                            {wallet.mnemonic.map((word, index) => (
+                                <div key={index} className="mnemonic-word">
+                                    <span className="mnemonic-word-num">{index + 1}</span>
+                                    <span className="mnemonic-word-text">{word}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Action row - Show (20%) + Copy (80%) */}
+                        <div className="secret-actions">
+                            <button
+                                className="secret-btn secret-btn-toggle"
+                                onClick={() => setShowPhrase(!showPhrase)}
+                            >
+                                {showPhrase ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                            </button>
+                            <button
+                                className={`secret-btn secret-btn-copy ${copied ? 'copied' : ''}`}
+                                onClick={handleCopy}
+                            >
+                                {copied ? <CheckIcon size={18} /> : <CopyIcon size={18} />}
+                                <span>{copied ? 'Copied!' : 'Copy Recovery Phrase'}</span>
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         </>
     );

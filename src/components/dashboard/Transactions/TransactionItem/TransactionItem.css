@@ -155,3 +155,22 @@
 .tx-copy-btn:active {
     transform: scale(0.95);
 }
+
+/* ===== Pending Transaction Style ===== */
+.tx-item.pending {
+    opacity: 0.8;
+}
+
+.tx-item.pending .tx-item-icon {
+    border-color: var(--warning);
+    background: var(--warning-bg);
+    color: var(--warning);
+}
+
+.tx-item.pending .tx-item-title {
+    color: var(--text-secondary);
+}
+
+.tx-item.pending .tx-item-amount {
+    color: var(--warning) !important;
+}

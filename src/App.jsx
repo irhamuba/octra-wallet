@@ -40,21 +40,7 @@ import { ocs01Manager } from './services/OCS01TokenService';
 import { cacheGet, cacheSet, cacheHas } from './utils/cache';
 import { CheckIcon, CloseIcon, InfoIcon } from './components/shared/Icons';
 
-// Toast component
-function Toast({ message, type }) {
-  let IconComponent = InfoIcon;
-  if (type === 'success') IconComponent = CheckIcon;
-  if (type === 'error') IconComponent = CloseIcon;
-
-  return (
-    <div className={`toast toast-${type}`}>
-      <span className="toast-icon">
-        <IconComponent size={14} />
-      </span>
-      <span className="toast-message">{message}</span>
-    </div>
-  );
-}
+import { Toast } from './components/shared/Toast';
 
 function App() {
   // App State
@@ -289,7 +275,20 @@ function App() {
         setAllTokens(updatedTokens);
       }
     } catch (error) {
-      console.error('Failed to fetch balance:', error);
+      if (error.message && error.message.includes('Sender not found')) {
+        // New account on network, balance is 0
+        setBalance(0);
+        setNonce(0);
+
+        if (allTokens.length > 0) {
+          const updatedTokens = allTokens.map(t =>
+            t.isNative ? { ...t, balance: 0 } : t
+          );
+          setAllTokens(updatedTokens);
+        }
+      } else {
+        console.error('Failed to fetch balance:', error);
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -311,7 +310,7 @@ function App() {
     }
   }, [wallet?.address, isUnlocked, balance]);
 
-  // Refresh transactions (OPTIMIZED: Batch decryption)
+  // Refresh transactions (OPTIMIZED: Batch decryption + Pending from staging)
   const refreshTransactions = useCallback(async () => {
     if (!wallet?.address) return;
 
@@ -319,18 +318,20 @@ function App() {
       // OPTIMIZATION: Decrypt privacy logs ONCE before loop
       const allPrivacyLogs = await getAllPrivacyTransactions(password);
 
+      // Fetch confirmed transactions
       const info = await rpcClient.getAddressInfo(wallet.address, 20);
 
+      let confirmedTxs = [];
+
+      // Process confirmed transactions
       if (info.recent_transactions && info.recent_transactions.length > 0) {
-        const txs = await Promise.all(
+        confirmedTxs = await Promise.all(
           info.recent_transactions.slice(0, 10).map(async (ref) => {
             try {
               const txData = await rpcClient.getTransaction(ref.hash);
               const parsed = txData.parsed_tx;
-              // Case insensitive comparison for address
               const isIncoming = parsed.to.toLowerCase() === wallet.address.toLowerCase();
 
-              // OPTIMIZATION: Lookup instead of decrypt (10x faster)
               const privacyLog = allPrivacyLogs[ref.hash] || null;
               let txType = isIncoming ? 'in' : 'out';
 
@@ -345,16 +346,57 @@ function App() {
                 address: isIncoming ? parsed.from : parsed.to,
                 timestamp: parsed.timestamp * 1000,
                 status: 'confirmed',
-                blockNumber: ref.epoch || ref.block || txData.block || txData.epoch || txData.block_height || parsed.block
+                epoch: txData.epoch || ref.epoch,
+                ou: parsed.ou || txData.ou
               };
             } catch {
               return null;
             }
           })
         );
-
-        setTransactions(txs.filter(Boolean));
+        confirmedTxs = confirmedTxs.filter(Boolean);
       }
+
+      // Try to fetch pending transactions from staging (optional - don't fail if unavailable)
+      let pendingTxs = [];
+      try {
+        const stagingResult = await rpcClient.get('/staging');
+        if (stagingResult.json && stagingResult.json.staged_transactions) {
+          const userAddrLower = wallet.address.toLowerCase();
+          const confirmedHashes = new Set(confirmedTxs.map(tx => tx.hash));
+
+          // Filter for OUR pending transactions only (not yet confirmed)
+          const ourPending = stagingResult.json.staged_transactions.filter(tx => {
+            const fromAddr = (tx.from || '').toLowerCase();
+            const toAddr = (tx.to || tx.to_ || '').toLowerCase();
+            const txHash = tx.hash || '';
+
+            // Must be our tx AND not already confirmed
+            return (fromAddr === userAddrLower || toAddr === userAddrLower) &&
+              !confirmedHashes.has(txHash);
+          });
+
+          pendingTxs = ourPending.map(tx => {
+            const toAddr = (tx.to || tx.to_ || '').toLowerCase();
+            const isIncoming = toAddr === wallet.address.toLowerCase();
+            return {
+              hash: tx.hash || `pending_${tx.nonce}_${Date.now()}`,
+              type: isIncoming ? 'in' : 'out',
+              amount: parseFloat(tx.amount || 0) / (tx.amount && tx.amount.includes('.') ? 1 : 1_000_000),
+              address: isIncoming ? tx.from : (tx.to || tx.to_),
+              timestamp: (tx.timestamp || Date.now() / 1000) * 1000,
+              status: 'pending',
+              ou: tx.ou
+            };
+          });
+        }
+      } catch (stagingError) {
+        // Staging fetch failed - that's OK, just show confirmed
+        console.log('Staging fetch skipped:', stagingError.message);
+      }
+
+      // Merge: pending first, then confirmed
+      setTransactions([...pendingTxs, ...confirmedTxs]);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
     }
@@ -503,9 +545,10 @@ function App() {
       setBalance(0);
       setTransactions([]);
 
-      // Removed success toast
+      showToast('New wallet added successfully', 'success');
     } catch (err) {
       console.error('Failed to add wallet:', err);
+      showToast(err.message || 'Failed to add wallet', 'error');
       throw err;
     }
   }, [password, wallets]);
@@ -527,10 +570,10 @@ function App() {
       updatedWallets[index] = { ...walletToUpdate, name: newName };
       setWallets(updatedWallets);
 
-      // Removed success toast
+      showToast('Wallet renamed successfully', 'success');
     } catch (err) {
       console.error('Failed to rename wallet:', err);
-      showToast('Failed to rename wallet', 'error');
+      showToast(err.message || 'Failed to rename wallet', 'error');
     }
   }, [wallets, password, showToast]);
 
@@ -549,7 +592,7 @@ function App() {
   return (
     <div className="wallet-container">
       {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Lock Screen */}
       {view === 'lock' && (

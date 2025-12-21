@@ -8,14 +8,16 @@ import { ocs01Manager } from '../../../services/OCS01TokenService';
 import { getTokenPrice, formatUsd, calculateUsdValue } from '../../../services/PriceService';
 import { saveSettings } from '../../../utils/storage';
 import { getRpcClient } from '../../../utils/rpc';
-import { AddTokenModal } from './AddTokenModal';
+import { AddCustomTokenModal } from './AddCustomTokenModal';
 import './HomeView.css';
 
-export function HomeView({ wallet, balance, transactions, onCopyAddress, copied, onSend, onReceive, onHistory, onNFT, settings, onUpdateSettings, showToast, onTokenClick, isBalanceHidden, onToggleBalance, allTokens, isLoadingTokens }) {
+export function HomeView({ wallet, balance, transactions, onCopyAddress, copied, onSend, onReceive, onHistory, onNFT, settings, onUpdateSettings, showToast, onTokenClick, isBalanceHidden, onToggleBalance, allTokens, isLoadingTokens, onRefresh }) {
     const [activeTab, setActiveTab] = useState('crypto');
     const [encryptedBalance, setEncryptedBalance] = useState(null);
     const [octPrice, setOctPrice] = useState(0);
     const [showAddTokenModal, setShowAddTokenModal] = useState(false);
+
+
 
     // Fetch OCT price based on network
     useEffect(() => {
@@ -99,18 +101,18 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
             </div>
 
             {/* Content Tabs - Simplified */}
-            <div className="content-tabs">
+            <div className="tabs">
                 <button
-                    className={`content-tab ${activeTab === 'crypto' ? 'active' : ''}`}
+                    className={`tab-item ${activeTab === 'crypto' ? 'active' : ''}`}
                     onClick={() => setActiveTab('crypto')}
                 >
                     Crypto
                 </button>
                 <button
-                    className={`content-tab ${activeTab === 'nft' ? 'active' : ''}`}
+                    className={`tab-item ${activeTab === 'nft' ? 'active' : ''}`}
                     onClick={() => setActiveTab('nft')}
                 >
-                    NFT
+                    NFTs
                 </button>
             </div>
 
@@ -179,11 +181,12 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
             </div>
 
             {/* Add Token Modal */}
-            <AddTokenModal
+            <AddCustomTokenModal
                 isOpen={showAddTokenModal}
                 onClose={() => setShowAddTokenModal(false)}
+                wallet={wallet}
                 rpcClient={getRpcClient(settings?.rpcUrl)}
-                onSuccess={() => {/* Token will be auto-refreshed by parent */ }}
+                onSuccess={onRefresh}
             />
         </>
     );

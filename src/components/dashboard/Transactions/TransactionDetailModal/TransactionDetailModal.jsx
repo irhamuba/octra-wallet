@@ -17,8 +17,8 @@ import {
     UnshieldIcon,
     PrivateTransferIcon,
     ClaimIcon
-} from '../../shared/Icons';
-import { formatAmount, truncateAddress } from '../../../utils/crypto';
+} from '../../../../components/shared/Icons';
+import { formatAmount, truncateAddress } from '../../../../utils/crypto';
 import './TransactionDetailModal.css';
 
 export function TransactionDetailModal({ tx, network, onClose }) {
@@ -70,17 +70,17 @@ export function TransactionDetailModal({ tx, network, onClose }) {
     };
 
     return (
-        <div className="tx-modal-overlay" onClick={onClose}>
-            <div className="tx-modal-content" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ overflow: 'visible' }}>
                 {/* Header */}
-                <div className="tx-modal-header">
-                    <h2 className="tx-modal-title">Transaction Details</h2>
-                    <button className="icon-btn-ghost" onClick={onClose}>
+                <div className="modal-header">
+                    <h2 className="modal-title">Transaction Details</h2>
+                    <button className="modal-close" onClick={onClose}>
                         <CloseIcon size={20} />
                     </button>
                 </div>
 
-                <div className="tx-modal-body">
+                <div className="tx-modal-body" style={{ padding: '0 24px 24px', overflowY: 'auto' }}>
                     {/* Amount & Status */}
                     <div className="tx-status-hero">
                         <div className={`tx-large-icon ${iconClass}`}>
@@ -123,8 +123,17 @@ export function TransactionDetailModal({ tx, network, onClose }) {
 
                         <div className="tx-detail-row">
                             <span className="tx-detail-label">Network Fee</span>
-                            <span className="tx-detail-value">{(tx.fee || 0.0001).toFixed(5)} OCT</span>
+                            <span className="tx-detail-value">
+                                {tx.ou ? formatAmount(parseInt(tx.ou) / 1000000) : formatAmount(tx.fee || 0)} OCT
+                            </span>
                         </div>
+
+                        {tx.epoch && (
+                            <div className="tx-detail-row">
+                                <span className="tx-detail-label">Block</span>
+                                <span className="tx-detail-value">#{tx.epoch}</span>
+                            </div>
+                        )}
 
                         <div className="tx-detail-row">
                             <span className="tx-detail-label">Network</span>

@@ -248,12 +248,16 @@ export async function updateWalletName(walletIdOrAddress, name, password) {
     // Try to find by ID first, then by address
     let wallet = wallets.find(w => w.id === walletIdOrAddress);
     if (!wallet) {
-        wallet = wallets.find(w => w.address === walletIdOrAddress);
+        // Case-insensitive address check for safety
+        wallet = wallets.find(w =>
+            w.address === walletIdOrAddress ||
+            (w.address && w.address.toLowerCase() === String(walletIdOrAddress).toLowerCase())
+        );
     }
 
     if (!wallet) {
-        console.warn(`[updateWalletName] Wallet not found: ${walletIdOrAddress?.slice(0, 20)}...`);
-        throw new Error('Wallet not found');
+        console.warn(`[updateWalletName] Wallet not found: ${walletIdOrAddress}`);
+        throw new Error(`Wallet not found with ID/Address: ${walletIdOrAddress}`);
     }
 
     wallet.name = name;
