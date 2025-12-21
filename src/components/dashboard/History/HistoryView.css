@@ -43,6 +43,26 @@
     color: var(--text-secondary);
 }
 
+/* Ghost Floating Animation */
+@keyframes ghostFloat {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: translateY(-10px);
+        opacity: 0.8;
+    }
+}
+
+.ghost-icon {
+    animation: ghostFloat 3s ease-in-out infinite;
+    color: var(--text-tertiary);
+}
+
 .tx-empty-icon {
     width: 48px;
     height: 48px;

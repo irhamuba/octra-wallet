@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Lottie from 'lottie-react';
+import successAnimation from '../../../assets/animations/step-complete.json';
 import { isValidAddress, formatAmount, truncateAddress } from '../../../utils/crypto';
 import { getRpcClient } from '../../../utils/rpc';
 import { addToTxHistory } from '../../../utils/storage';
@@ -193,6 +195,9 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
         setError('');
 
         try {
+            // User requested 10s loading simulation
+            await new Promise(r => setTimeout(r, 10000));
+
             const rpcClient = getRpcClient();
 
             // Get fresh nonce
@@ -445,10 +450,29 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
             )}
 
             {/* Success State */}
+            {/* Sending State - 10s Loading Modal */}
+            {step === 'sending' && (
+                <div className="flex flex-col items-center justify-center py-3xl animate-fade-in" style={{ minHeight: '60vh' }}>
+                    <div className="relative mb-xl">
+                        {/* Pulse Ring */}
+                        <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'var(--accent-primary)' }} />
+                        {/* Circle */}
+                        <div className="relative rounded-full flex items-center justify-center" style={{ width: 80, height: 80, background: 'var(--bg-elevated)' }}>
+                            <div className="loading-spinner" style={{ width: 40, height: 40, borderTopColor: 'var(--accent-primary)', borderRightColor: 'transparent' }} />
+                        </div>
+                    </div>
+                    <h3 className="text-xl font-bold mb-xs">Sending Payment</h3>
+                    <p className="text-secondary text-sm text-center max-w-xs">
+                        Securing transaction on Octra Network...
+                    </p>
+                </div>
+            )}
+
+            {/* Success State */}
             {step === 'success' && (
-                <div className="flex flex-col items-center justify-center py-3xl text-center animate-fade-in">
-                    <div className="success-checkmark mb-xl">
-                        <CheckIcon size={32} />
+                <div className="flex flex-col items-center justify-center py-3xl text-center animate-scale-in">
+                    <div style={{ width: 150, height: 150, margin: '0 auto 10px' }}>
+                        <Lottie animationData={successAnimation} loop={false} autoplay={true} />
                     </div>
                     <p className="text-xl font-bold mb-sm">Transaction Sent!</p>
                     <p className="text-secondary text-sm mb-xl">
@@ -567,16 +591,16 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                 </div>
             )}
 
-            {/* Confirmation Modal */}
+            {/* Confirmation Modal - Hide when sending starts */}
             <ConfirmTransactionModal
-                isOpen={showConfirmModal}
+                isOpen={showConfirmModal && step !== 'sending'}
                 onClose={() => setShowConfirmModal(false)}
                 onConfirm={handleConfirmSend}
                 recipient={recipient}
                 amount={amount}
                 fee={fee}
                 tokenSymbol={selectedToken?.symbol || 'OCT'}
-                isLoading={step === 'sending'}
+                isLoading={false}
             />
         </div>
     );

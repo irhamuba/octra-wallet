@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
 import { truncateAddress, formatAmount } from '../../../utils/crypto';
 import { CopyIcon, CheckIcon, EyeIcon, EyeOffIcon, ShieldIcon, PlusIcon, ImageIcon } from '../../shared/Icons';
 import { TokenItem } from '../TokenItem';
@@ -56,17 +57,29 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
         fetchEncryptedBalance();
     }, [balance, fetchEncryptedBalance]); // Only re-fetch if native balance changes or on mount
 
-    // Calculate total balance including shielded
-    const totalBalance = balance + (encryptedBalance?.encryptedBalance || 0);
+    // Calculate total balance including shielded - Memoized
+    const totalBalance = useMemo(() => {
+        return balance + (encryptedBalance?.encryptedBalance || 0);
+    }, [balance, encryptedBalance]);
+
+    // Calculate USD Value - Memoized
+    const displayUsdValue = useMemo(() => {
+        return formatUsd(calculateUsdValue(totalBalance, octPrice));
+    }, [totalBalance, octPrice]);
 
     // Use tokens from parent (already includes OCT + OCS01)
     const tokens = allTokens || [];
 
     return (
         <>
-            {/* Balance Card - Clickable USD, No Eye Button */}
+            {/* Balance Card - Clickable USD, with Skeleton Loading */}
             <div className="balance-card">
-                {isBalanceHidden ? (
+                {isLoadingTokens && balance === 0 ? (
+                    <div className="flex-col items-center">
+                        <div className="skeleton" style={{ width: '160px', height: '36px', marginBottom: '8px', borderRadius: '8px' }} />
+                        <div className="skeleton" style={{ width: '100px', height: '18px', borderRadius: '4px' }} />
+                    </div>
+                ) : isBalanceHidden ? (
                     <div className="balance-amount balance-clickable" onClick={onToggleBalance}>
                         <span className="balance-hidden">••••••</span>
                     </div>
@@ -74,7 +87,7 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
                     <div className="balance-clickable" onClick={onToggleBalance}>
                         {/* USD Value - Primary - Clickable */}
                         <div className="balance-usd">
-                            {formatUsd(calculateUsdValue(totalBalance, octPrice))}
+                            {displayUsdValue}
                         </div>
 
                         {/* OCT Amount - Secondary */}
@@ -83,8 +96,6 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
                         </div>
                     </div>
                 )}
-
-                {/* Address */}
             </div>
 
             {/* Content Tabs - Simplified */}
@@ -119,28 +130,47 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
                             </button>
                         </div>
                         <div className="token-list px-md">
-                            {tokens.map((token) => (
-                                <TokenItem
-                                    key={token.isNative ? 'OCT' : token.contractAddress}
-                                    token={token}
-                                    onClick={() => onTokenClick(token)}
-                                    hideBalance={isBalanceHidden}
-                                />
-                            ))}
-                            {isLoadingTokens && tokens.length === 0 && (
-                                <div className="text-center py-md opacity-50">
-                                    <div className="loading-spinner mb-xs" style={{ width: 16, height: 16, margin: '0 auto' }} />
-                                    <span className="text-xs">Scanning for tokens...</span>
-                                </div>
+                            {isLoadingTokens && tokens.length === 0 ? (
+                                /* Skeleton Loading List */
+                                [1, 2, 3].map((i) => (
+                                    <div key={i} className="flex items-center gap-md p-md mb-xs" style={{ background: 'var(--bg-elevated)', borderRadius: '12px' }}>
+                                        <div className="skeleton" style={{ width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0 }} />
+                                        <div className="flex-1 flex flex-col gap-xs">
+                                            <div className="skeleton" style={{ width: '80px', height: '14px' }} />
+                                            <div className="skeleton" style={{ width: '50px', height: '10px' }} />
+                                        </div>
+                                        <div className="skeleton" style={{ width: '70px', height: '14px' }} />
+                                    </div>
+                                ))
+                            ) : (
+                                tokens.map((token) => (
+                                    <TokenItem
+                                        key={token.isNative ? 'OCT' : token.contractAddress}
+                                        token={token}
+                                        onClick={() => onTokenClick(token)}
+                                        hideBalance={isBalanceHidden}
+                                    />
+                                ))
                             )}
                         </div>
                     </div>
                 )}
 
                 {activeTab === 'nft' && (
-                    <div className="empty-state">
-                        <div className="empty-state-icon">
-                            <ImageIcon size={40} className="opacity-20" />
+                    <div className="empty-state flex flex-col items-center py-3xl">
+                        <div style={{ marginBottom: '16px', opacity: 0.8, color: 'var(--text-tertiary)' }}>
+                            <svg width="120" height="120" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <ellipse className="ghost-shadow" cx="50" cy="92" rx="20" ry="3" fill="currentColor" fillOpacity="0.2" />
+                                <g className="ghost-body">
+                                    <path d="M50 15C30 15 15 35 15 60V85L22 78L29 85L36 78L43 85L50 78L57 85L64 78L71 85L78 78L85 85V60C85 35 70 15 50 15Z"
+                                        fill="currentColor" fillOpacity="0.05" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                                    <circle cx="38" cy="45" r="4" fill="currentColor" fillOpacity="0.8" />
+                                    <circle cx="62" cy="45" r="4" fill="currentColor" fillOpacity="0.8" />
+                                    <ellipse cx="50" cy="58" rx="3" ry="4" stroke="currentColor" strokeWidth="1.5" />
+                                    <path d="M15 55C10 55 5 45 10 40" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                    <path d="M85 55C90 55 95 45 90 40" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                                </g>
+                            </svg>
                         </div>
                         <p>No NFTs yet</p>
                         <span className="text-tertiary text-sm">Your NFTs will appear here</span>

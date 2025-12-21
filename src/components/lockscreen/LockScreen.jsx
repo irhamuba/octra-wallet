@@ -3,7 +3,7 @@
  * Password unlock screen for accessing the wallet
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UbaLogo, EyeIcon, EyeOffIcon, LockIcon, KeyIcon, ImportIcon, ChevronLeftIcon } from '../shared/Icons';
 import { securityService } from '../../services/SecurityService';
 import './LockScreen.css';
@@ -12,6 +12,8 @@ export function LockScreen({ onUnlock, onRecover }) {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    const [isShaking, setIsShaking] = useState(false);
+
     const [isLoading, setIsLoading] = useState(false);
 
     // Forgot password state
@@ -22,6 +24,18 @@ export function LockScreen({ onUnlock, onRecover }) {
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const [recoveryError, setRecoveryError] = useState('');
     const [isRecovering, setIsRecovering] = useState(false);
+
+
+    // Clear shake after animation
+    useEffect(() => {
+        if (isShaking) {
+            const timer = setTimeout(() => setIsShaking(false), 500);
+            return () => clearTimeout(timer);
+        }
+    }, [isShaking]);
+
+
+
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -48,6 +62,9 @@ export function LockScreen({ onUnlock, onRecover }) {
             // Success - reset attempts
             securityService.recordPasswordAttempt(true);
         } catch (err) {
+            // Shake it off
+            setIsShaking(true);
+
             // Failed - record attempt
             const result = securityService.recordPasswordAttempt(false);
 
@@ -258,7 +275,7 @@ export function LockScreen({ onUnlock, onRecover }) {
     // Normal Lock Screen
     return (
         <div className="lock-screen animate-fade-in">
-            <div className="lock-screen-content">
+            <div className={`lock-screen-content ${isShaking ? 'shake' : ''}`}>
                 <div className="lock-icon-container">
                     <LockIcon size={32} />
                 </div>
