@@ -5,7 +5,7 @@
     "op": 60,
     "w": 100,
     "h": 100,
-    "nm": "Super Bouncy Pop",
+    "nm": "Success Green",
     "ddd": 0,
     "assets": [],
     "layers": [
@@ -222,9 +222,9 @@
                             "c": {
                                 "a": 0,
                                 "k": [
-                                    1,
-                                    1,
-                                    1,
+                                    0,
+                                    0.78,
+                                    0.32,
                                     1
                                 ],
                                 "ix": 3

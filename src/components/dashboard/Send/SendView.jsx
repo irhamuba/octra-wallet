@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Lottie from 'lottie-react';
 import successAnimation from '../../../assets/animations/step-complete.json';
+import sendingAnimation from '../../../assets/animations/sending.json';
 import { isValidAddress, formatAmount, truncateAddress } from '../../../utils/crypto';
 import { getRpcClient } from '../../../utils/rpc';
 import { addToTxHistory } from '../../../utils/storage';
@@ -195,8 +196,8 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
         setError('');
 
         try {
-            // User requested 10s loading simulation
-            await new Promise(r => setTimeout(r, 10000));
+            // Give user time to appreciate the premium animation
+            await new Promise(r => setTimeout(r, 3500));
 
             const rpcClient = getRpcClient();
 
@@ -433,33 +434,22 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                         <button className="btn btn-secondary btn-lg flex-1" onClick={() => setStep('form')}>
                             Back
                         </button>
-                        <button className="btn btn-primary btn-lg flex-1" onClick={handleSend}>
+                        <button className="btn btn-primary btn-lg flex-1" onClick={handleConfirmSend}>
                             Sign & Send
                         </button>
                     </div>
                 </>
             )}
 
-            {/* Sending State */}
-            {step === 'sending' && (
-                <div className="flex flex-col items-center justify-center py-3xl">
-                    <div className="loading-spinner mb-xl" style={{ width: 48, height: 48 }} />
-                    <p className="text-lg font-semibold">Signing & Sending</p>
-                    <p className="text-secondary text-sm mt-sm">Please wait...</p>
-                </div>
-            )}
 
             {/* Success State */}
             {/* Sending State - 10s Loading Modal */}
             {step === 'sending' && (
                 <div className="flex flex-col items-center justify-center py-3xl animate-fade-in" style={{ minHeight: '60vh' }}>
-                    <div className="relative mb-xl">
-                        {/* Pulse Ring */}
-                        <div className="absolute inset-0 rounded-full animate-ping opacity-20" style={{ background: 'var(--accent-primary)' }} />
-                        {/* Circle */}
-                        <div className="relative rounded-full flex items-center justify-center" style={{ width: 80, height: 80, background: 'var(--bg-elevated)' }}>
-                            <div className="loading-spinner" style={{ width: 40, height: 40, borderTopColor: 'var(--accent-primary)', borderRightColor: 'transparent' }} />
-                        </div>
+                    <div className="sending-animation-container">
+                        <div className="quantum-ring-outer" />
+                        <div className="quantum-ring-inner" />
+                        <div className="quantum-core" />
                     </div>
                     <h3 className="text-xl font-bold mb-xs">Sending Payment</h3>
                     <p className="text-secondary text-sm text-center max-w-xs">
@@ -471,10 +461,13 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
             {/* Success State */}
             {step === 'success' && (
                 <div className="flex flex-col items-center justify-center py-3xl text-center animate-scale-in">
-                    <div style={{ width: 150, height: 150, margin: '0 auto 10px' }}>
-                        <Lottie animationData={successAnimation} loop={false} autoplay={true} />
+                    <div className="success-check-premium">
+                        <div className="success-circle-reveal" />
+                        <svg className="success-svg" viewBox="0 0 52 52" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                            <path className="checkmark-path" d="M14 27l8 8 16-16" />
+                        </svg>
                     </div>
-                    <p className="text-xl font-bold mb-sm">Transaction Sent!</p>
+                    <p className="text-xl font-bold mb-sm" style={{ color: 'var(--success)' }}>Transaction Sent!</p>
                     <p className="text-secondary text-sm mb-xl">
                         Your transaction has been submitted to the network
                     </p>
@@ -539,30 +532,19 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                             Click to view on OctraScan
                         </p>
 
-                        {/* Transaction Status */}
-                        {txStatus === 'pending' && (
-                            <div className="mt-md flex items-center justify-center gap-sm text-warning">
-                                <div className="loading-spinner" style={{ width: 14, height: 14 }} />
-                                <span className="text-xs">Waiting for confirmation...</span>
-                            </div>
-                        )}
-                        {txStatus === 'confirmed' && (
-                            <div className="mt-md flex items-center justify-center gap-sm text-success">
-                                <CheckIcon size={14} />
-                                <span className="text-xs font-medium">Confirmed on chain!</span>
-                            </div>
-                        )}
-                        {txStatus === 'timeout' && (
-                            <div className="mt-md text-center">
-                                <div className="flex items-center justify-center gap-sm text-secondary mb-xs">
-                                    <AlertIcon size={14} />
-                                    <span className="text-xs">Testnet is slow - transaction still processing</span>
+                        {/* Transaction Status - Subtle */}
+                        <div className="mt-md pt-sm border-top" style={{ borderColor: 'var(--border-subtle)' }}>
+                            {txStatus === 'pending' || !txStatus ? (
+                                <p className="text-xs text-secondary italic">Transaction Pending Confirmation...</p>
+                            ) : txStatus === 'confirmed' ? (
+                                <div className="flex items-center justify-center gap-sm text-success">
+                                    <CheckIcon size={12} />
+                                    <span className="text-xs font-semibold">Confirmed on Chain</span>
                                 </div>
-                                <p className="text-xs text-tertiary">
-                                    Check status manually in a few minutes
-                                </p>
-                            </div>
-                        )}
+                            ) : (
+                                <p className="text-xs text-tertiary">Processing on network...</p>
+                            )}
+                        </div>
                     </div>
 
                     <button className="btn btn-primary btn-lg" onClick={() => { setStep('form'); setRecipient(''); setAmount(''); setTxStatus(null); setTxHash(''); }}>
