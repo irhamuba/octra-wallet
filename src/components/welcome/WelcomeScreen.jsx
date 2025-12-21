@@ -3,7 +3,8 @@
  * Flow: Welcome → Password → Seed Phrase → Verify 3 words
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getRpcClient } from '../../utils/rpc';
 import {
     UbaLogo,
     PlusIcon,
@@ -19,12 +20,46 @@ import {
     AnimatedLockIcon,
     AlertIcon
 } from '../shared/Icons';
+// ... other imports
+// ... other imports
 import { StepHeader } from './StepHeader/StepHeader';
 import './WelcomeScreen.css';
+import './SuccessSplash.css';
+
+// Success Splash Component - Phantom-like experience
+function SuccessSplash({ onFinish }) {
+    const [phase, setPhase] = useState('entering'); // entering -> visible -> exiting
+
+    useEffect(() => {
+        // Timeline:
+        // 0ms: Enter
+        // 2000ms: Start Exit
+        // 2500ms: Finish
+        const timer1 = setTimeout(() => setPhase('exiting'), 2000);
+        const timer2 = setTimeout(onFinish, 2500);
+        return () => { clearTimeout(timer1); clearTimeout(timer2); };
+    }, [onFinish]);
+
+    return (
+        <div className={`success-splash ${phase}`}>
+            <div className="success-content">
+                <div className="success-icon-container">
+                    {/* CSS Animation (Clean Checkmark bounce) */}
+                    <div className="css-success-circle">
+                        <CheckIcon size={40} className="css-success-check" />
+                    </div>
+                </div>
+                <h2 className="success-title">Wallet Ready!</h2>
+                <p className="success-message">Redirecting to dashboard...</p>
+            </div>
+        </div>
+    );
+}
 
 export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
     return (
         <div className="onboarding-container welcome-centered animate-fade-in">
+
             <div className="onboarding-header animate-slide-up">
                 <div className="onboarding-logo">
                     <UbaLogo size={64} />
@@ -83,6 +118,7 @@ export function CreateWalletScreen({ onBack, onComplete }) {
     const [isLoading, setIsLoading] = useState(false);
     const [showMnemonic, setShowMnemonic] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [isSuccess, setIsSuccess] = useState(false); // Added missing state
 
     // Verification state
     const [verifyPositions, setVerifyPositions] = useState([]);
@@ -91,6 +127,11 @@ export function CreateWalletScreen({ onBack, onComplete }) {
     const [verificationError, setVerificationError] = useState('');
 
     const passwordStrength = getPasswordStrength(password);
+
+    // Helper to finish process after splash
+    const handleFinalSuccess = () => {
+        onComplete(wallet, password);
+    };
 
     const handleSetPassword = async () => {
         if (password.length < 8) {
@@ -187,11 +228,26 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                 return;
             }
         }
-        onComplete(wallet, password);
+
+        setIsSuccess(true);
+
+        // OPTIMIZATION: Warm up RPC connection while splash animation plays (2.5s)
+        // This performs DNS/TCP/TLS handshakes so Dashboard loads balance instantly
+        try {
+            const rpc = getRpcClient();
+            // Fire and forget request to seed any network caches
+            rpc.getBalance(wallet.address).catch(e => console.debug('Warmup ignored:', e));
+        } catch (e) {
+            // Ignore warmup errors
+        }
     };
 
     const isVerifyComplete = verifyPositions.every(pos => selectedWords[pos]);
     const nextEmptyPos = getNextEmptyPosition();
+
+    if (isSuccess) {
+        return <SuccessSplash onFinish={handleFinalSuccess} />;
+    }
 
     return (
         <div className="onboarding-container animate-fade-in">
@@ -296,6 +352,8 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                         onBack={() => setStep(1)}
                     />
 
+
+
                     <p className="step-description">
                         Write down these 12 words in order. Never share them.
                     </p>
@@ -349,6 +407,8 @@ export function CreateWalletScreen({ onBack, onComplete }) {
                         totalSteps={3}
                         onBack={() => setStep(2)}
                     />
+
+
 
                     <p className="step-description">
                         Select the correct words to verify your phrase.
@@ -433,6 +493,8 @@ export function ImportWalletScreen({ onBack, onComplete }) {
     const [showKey, setShowKey] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
+    const [wallet, setWallet] = useState(null);
 
     const passwordStrength = getPasswordStrength(password);
 
@@ -448,27 +510,36 @@ export function ImportWalletScreen({ onBack, onComplete }) {
         setStep(2);
     };
 
+    const handleFinalSuccess = () => {
+        onComplete(wallet, password);
+    };
+
     const handleImport = async () => {
         setIsLoading(true);
         setError('');
 
         try {
-            let wallet;
+            let newWallet;
             const { importFromMnemonic, importFromPrivateKey } = await import('../../utils/crypto');
 
             if (importType === 'mnemonic') {
-                wallet = await importFromMnemonic(mnemonic.trim());
+                newWallet = await importFromMnemonic(mnemonic.trim());
             } else {
-                wallet = await importFromPrivateKey(privateKey.trim());
+                newWallet = await importFromPrivateKey(privateKey.trim());
             }
 
-            onComplete(wallet, password);
+            setWallet(newWallet);
+            setIsSuccess(true);
         } catch (err) {
             setError(err.message || 'Failed to import wallet');
         } finally {
             setIsLoading(false);
         }
     };
+
+    if (isSuccess) {
+        return <SuccessSplash onFinish={handleFinalSuccess} />;
+    }
 
     return (
         <div className="onboarding-container animate-fade-in">

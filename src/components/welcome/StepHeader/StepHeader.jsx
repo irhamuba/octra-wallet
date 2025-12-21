@@ -1,14 +1,11 @@
 import React from 'react';
+import Lottie from 'lottie-react';
 import { ChevronLeftIcon } from '../../shared/Icons/Icons';
+import stepCompleteAnimation from '../../../assets/animations/step-complete.json';
 import './StepHeader.css';
 
 /**
  * StepHeader Component
- * Layout:
- * ┌─────────────────────────────────┐
- * │  ←     Create Password          │  ← Back + Title in same row
- * │         ●───●───○               │  ← Step indicators below
- * └─────────────────────────────────┘
  */
 export function StepHeader({
     title,
@@ -34,21 +31,54 @@ export function StepHeader({
                     const isActive = stepNum === currentStep;
                     const isCompleted = stepNum < currentStep;
 
+                    // Logic: Only animate the step that IMMEDIATELY precedes the current step.
+                    // This prevents older steps from re-popping when we move to step 3, 4, etc.
+                    const shouldAnimate = isCompleted && stepNum === currentStep - 1;
+
                     return (
-                        <React.Fragment key={stepNum}>
-                            <div
-                                className={`step-header-dot ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-                            >
-                                {isCompleted ? '✓' : stepNum}
-                            </div>
-                            {stepNum < totalSteps && (
-                                <div className={`step-header-line ${isCompleted ? 'completed' : ''}`} />
-                            )}
-                        </React.Fragment>
+                        <StepIndicator
+                            key={stepNum}
+                            stepNum={stepNum}
+                            shouldAnimate={shouldAnimate}
+                            isActive={isActive}
+                            isCompleted={isCompleted}
+                            isLast={stepNum === totalSteps}
+                        />
                     );
                 })}
             </div>
         </div>
+    );
+}
+
+// Sub-component
+function StepIndicator({ stepNum, shouldAnimate, isActive, isCompleted, isLast }) {
+    return (
+        <React.Fragment>
+            <div
+                className={`step-header-dot ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${shouldAnimate ? 'animate' : ''}`}
+            >
+                {isCompleted ? (
+                    <div className="step-lottie-wrapper">
+                        <Lottie
+                            animationData={stepCompleteAnimation}
+                            loop={false}
+                            // If `shouldAnimate` is true: Play from start (0).
+                            // If `shouldAnimate` is false: Freeze at end frame (59).
+                            autoplay={shouldAnimate}
+                            initialSegment={shouldAnimate ? [0, 60] : [59, 60]}
+                        />
+                    </div>
+                ) : (
+                    stepNum
+                )}
+            </div>
+            {!isLast && (
+                <div
+                    className={`step-header-line ${isCompleted ? 'completed' : ''} ${shouldAnimate ? 'animate' : ''}`}
+                />
+            )}
+        </React.Fragment>
     );
 }
 

@@ -576,23 +576,23 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
 
             {/* Bottom Navigation - OKX Style */}
             <nav className="wallet-nav">
-                <button className={`nav-item ${view === 'home' ? 'active' : ''}`} onClick={() => setView('home')}>
+                <button className={`nav-item nav-home ${view === 'home' ? 'active' : ''}`} onClick={() => setView('home')}>
                     <WalletIcon size={20} className="nav-icon" />
                     <span className="nav-label">Home</span>
                 </button>
-                <button className={`nav-item ${view === 'send' ? 'active' : ''}`} onClick={() => setView('send')}>
+                <button className={`nav-item nav-send ${view === 'send' ? 'active' : ''}`} onClick={() => setView('send')}>
                     <SendIcon size={20} className="nav-icon" />
                     <span className="nav-label">Send</span>
                 </button>
-                <button className={`nav-item ${view === 'privacy' ? 'active' : ''}`} onClick={() => setView('privacy')}>
+                <button className={`nav-item nav-privacy ${view === 'privacy' ? 'active' : ''}`} onClick={() => setView('privacy')}>
                     <PrivacyIcon size={20} className="nav-icon" />
                     <span className="nav-label">Privacy</span>
                 </button>
-                <button className={`nav-item ${view === 'receive' ? 'active' : ''}`} onClick={() => setView('receive')}>
+                <button className={`nav-item nav-receive ${view === 'receive' ? 'active' : ''}`} onClick={() => setView('receive')}>
                     <ReceiveIcon size={20} className="nav-icon" />
                     <span className="nav-label">Receive</span>
                 </button>
-                <button className={`nav-item ${view === 'history' ? 'active' : ''}`} onClick={() => setView('history')}>
+                <button className={`nav-item nav-history ${view === 'history' ? 'active' : ''}`} onClick={() => setView('history')}>
                     <HistoryIcon size={20} className="nav-icon" />
                     <span className="nav-label">History</span>
                 </button>
