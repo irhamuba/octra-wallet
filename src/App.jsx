@@ -127,73 +127,6 @@ function App() {
     };
   }, [isUnlocked, settings.autoLockMinutes]);
 
-  // Fetch balance when wallet is available
-  useEffect(() => {
-    if (wallet && view === 'dashboard' && isUnlocked) {
-      refreshBalance();
-      refreshTransactions();
-
-      const interval = setInterval(() => {
-        refreshBalance();
-        refreshTransactions();
-      }, 10000);
-
-      return () => clearInterval(interval);
-    }
-  }, [wallet, view, isUnlocked]);
-
-  // Lock wallet - SECURITY: Wipes all keys from memory
-  const handleLock = useCallback(() => {
-    // CRITICAL: Securely wipe all keys from memory via KeyringService
-    keyringService.lock();
-
-    setIsUnlocked(false);
-    setPassword(null);
-    setWallets([]);
-    setView('lock');
-  }, []);
-
-  // Unlock wallet with password
-  const handleUnlock = useCallback(async (enteredPassword) => {
-    const isValid = await verifyPassword(enteredPassword);
-    if (!isValid) {
-      throw new Error('Invalid password');
-    }
-
-    // Load wallets with password
-    const loadedWallets = await loadWallets(enteredPassword);
-    if (loadedWallets.length === 0) {
-      throw new Error('No wallets found');
-    }
-
-    // SECURITY: Initialize KeyringService with decrypted keys
-    await keyringService.unlock(enteredPassword, loadedWallets);
-
-    setPassword(enteredPassword);
-    setWallets(loadedWallets);
-    setActiveWalletIdx(getActiveWalletIndex());
-    setTransactions(getTxHistory(settings.network || 'testnet'));
-    setIsUnlocked(true);
-    setView('dashboard');
-  }, [settings.network]);
-
-  // Setup password for new wallet
-  const handleSetupPassword = useCallback(async (newPassword) => {
-    await setWalletPassword(newPassword);
-    setPassword(newPassword);
-
-    if (pendingWallet) {
-      // Save the pending wallet with the new password
-      await addWallet(pendingWallet, newPassword);
-      setWallets([{ ...pendingWallet, id: crypto.randomUUID(), name: 'Wallet 1' }]);
-      setPendingWallet(null);
-    }
-
-    setIsUnlocked(true);
-    setView('dashboard');
-    // Removed success toast - user can see wallet is created
-  }, [pendingWallet]);
-
   // Fetch all tokens with cache (30s TTL)
   const fetchAllTokens = useCallback(async () => {
     if (!wallet?.address) return [];
@@ -255,7 +188,6 @@ function App() {
       const cached = cacheGet(cacheKey);
       setBalance(cached.balance);
       setNonce(cached.nonce);
-      // Don't return - fetch fresh in background
     }
 
     setIsRefreshing(true);
@@ -263,6 +195,17 @@ function App() {
       const data = await rpcClient.getBalance(wallet.address);
       setBalance(data.balance);
       setNonce(data.nonce);
+
+      // SILENTLY update the balance in the full wallets list too
+      if (activeWalletIndex !== -1) {
+        setWallets(prev => {
+          const updated = [...prev];
+          if (updated[activeWalletIndex]) {
+            updated[activeWalletIndex] = { ...updated[activeWalletIndex], lastKnownBalance: data.balance };
+          }
+          return updated;
+        });
+      }
 
       // Cache for 10 seconds
       cacheSet(cacheKey, data, 10000);
@@ -276,7 +219,6 @@ function App() {
       }
     } catch (error) {
       if (error.message && error.message.includes('Sender not found')) {
-        // New account on network, balance is 0
         setBalance(0);
         setNonce(0);
 
@@ -292,23 +234,37 @@ function App() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [wallet, rpcClient, allTokens]);
+  }, [wallet, rpcClient, allTokens, activeWalletIndex]);
 
-  // Load tokens on wallet change or balance update
-  useEffect(() => {
-    if (wallet?.address && isUnlocked) {
-      // Update allTokens immediately when balance changes
-      if (allTokens.length > 0) {
-        const updatedTokens = allTokens.map(t =>
-          t.isNative ? { ...t, balance: balance } : t
-        );
-        setAllTokens(updatedTokens);
-      } else {
-        // First load - fetch all tokens
-        fetchAllTokens();
+  // BACKGROUND: Refresh ALL wallet balances every 30s
+  const refreshAllBalances = useCallback(async () => {
+    if (!isUnlocked || wallets.length === 0) return;
+
+    try {
+      const updatedWallets = await Promise.all(wallets.map(async (w) => {
+        try {
+          const data = await rpcClient.getBalance(w.address);
+          return { ...w, lastKnownBalance: data.balance };
+        } catch (err) {
+          if (err.message && err.message.includes('Sender not found')) {
+            return { ...w, lastKnownBalance: 0 };
+          }
+          return w;
+        }
+      }));
+
+      // Only update if something actually changed to avoid unnecessary re-renders
+      const hasChanges = updatedWallets.some((w, i) => w.lastKnownBalance !== wallets[i].lastKnownBalance);
+      if (hasChanges) {
+        setWallets(updatedWallets);
+        // Persist to storage so they are there on next login
+        const { saveWallets: saveWalletsToStorage } = await import('./utils/storage.js');
+        await saveWalletsToStorage(updatedWallets, password);
       }
+    } catch (error) {
+      console.error('Background balance refresh failed:', error);
     }
-  }, [wallet?.address, isUnlocked, balance]);
+  }, [wallets, isUnlocked, rpcClient, password]);
 
   // Refresh transactions (OPTIMIZED: Batch decryption + Pending from staging)
   const refreshTransactions = useCallback(async () => {
@@ -401,6 +357,99 @@ function App() {
       console.error('Failed to fetch transactions:', error);
     }
   }, [wallet, rpcClient, password]);
+
+  // Fetch balance when wallet is available
+  useEffect(() => {
+    if (wallet && view === 'dashboard' && isUnlocked) {
+      refreshBalance();
+      refreshTransactions();
+      refreshAllBalances(); // Initial check for all
+
+      const balanceInterval = setInterval(() => {
+        refreshBalance();
+        refreshTransactions();
+      }, 10000);
+
+      const allBalancesInterval = setInterval(() => {
+        refreshAllBalances();
+      }, 30000);
+
+      return () => {
+        clearInterval(balanceInterval);
+        clearInterval(allBalancesInterval);
+      };
+    }
+  }, [wallet, view, isUnlocked, refreshBalance, refreshTransactions, refreshAllBalances]);
+
+  // Load tokens on wallet change or balance update
+  useEffect(() => {
+    if (wallet?.address && isUnlocked) {
+      // Update allTokens immediately when balance changes
+      if (allTokens.length > 0) {
+        const updatedTokens = allTokens.map(t =>
+          t.isNative ? { ...t, balance: balance } : t
+        );
+        setAllTokens(updatedTokens);
+      } else {
+        // First load - fetch all tokens
+        fetchAllTokens();
+      }
+    }
+  }, [wallet?.address, isUnlocked, balance, fetchAllTokens]);
+
+  // Lock wallet - SECURITY: Wipes all keys from memory
+  const handleLock = useCallback(() => {
+    // CRITICAL: Securely wipe all keys from memory via KeyringService
+    keyringService.lock();
+
+    setIsUnlocked(false);
+    setPassword(null);
+    setWallets([]);
+    setView('lock');
+  }, []);
+
+  // Unlock wallet with password
+  const handleUnlock = useCallback(async (enteredPassword) => {
+    const isValid = await verifyPassword(enteredPassword);
+    if (!isValid) {
+      throw new Error('Invalid password');
+    }
+
+    // Load wallets with password
+    const loadedWallets = await loadWallets(enteredPassword);
+    if (loadedWallets.length === 0) {
+      throw new Error('No wallets found');
+    }
+
+    // SECURITY: Initialize KeyringService with decrypted keys
+    await keyringService.unlock(enteredPassword, loadedWallets);
+
+    setPassword(enteredPassword);
+    setWallets(loadedWallets);
+    setActiveWalletIdx(getActiveWalletIndex());
+    setTransactions(getTxHistory(settings.network || 'testnet'));
+    setIsUnlocked(true);
+    setView('dashboard');
+  }, [settings.network]);
+
+  // Setup password for new wallet
+  const handleSetupPassword = useCallback(async (newPassword) => {
+    await setWalletPassword(newPassword);
+    setPassword(newPassword);
+
+    if (pendingWallet) {
+      // Save the pending wallet with the new password
+      await addWallet(pendingWallet, newPassword);
+      setWallets([{ ...pendingWallet, id: crypto.randomUUID(), name: 'Wallet 1' }]);
+      setPendingWallet(null);
+    }
+
+    setIsUnlocked(true);
+    setView('dashboard');
+    // Removed success toast - user can see wallet is created
+  }, [pendingWallet]);
+
+
 
   // Handle wallet creation - wallet and password come together now
   const handleWalletGenerated = useCallback(async (newWallet, newPassword) => {
