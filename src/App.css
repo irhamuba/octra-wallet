@@ -16,6 +16,8 @@
 /* For IE and Edge (legacy) */
 * {
   -ms-overflow-style: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Remove square highlight on mobile tap */
 }
 
 /* Dashboard Header and Navigation Styles Moved to Dashboard.css */

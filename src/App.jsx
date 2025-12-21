@@ -38,6 +38,7 @@ import { getRpcClient, setRpcUrl } from './utils/rpc';
 import { keyringService } from './services/KeyringService';
 import { ocs01Manager } from './services/OCS01TokenService';
 import { cacheGet, cacheSet, cacheHas } from './utils/cache';
+import { balanceCache } from './utils/balanceCache';
 import { CheckIcon, CloseIcon, InfoIcon } from './components/shared/Icons';
 
 import { Toast } from './components/shared/Toast';
@@ -177,56 +178,53 @@ function App() {
     }
   }, [wallet, balance]);
 
-  // Refresh balance with cache (10s TTL)
+  // Optimized balance refresh with 3-layer cache & request deduplication
   const refreshBalance = useCallback(async () => {
     if (!wallet?.address) return;
 
-    const cacheKey = `balance_${wallet.address}`;
-
-    // Show cached data first if available
-    if (cacheHas(cacheKey)) {
-      const cached = cacheGet(cacheKey);
-      setBalance(cached.balance);
-      setNonce(cached.nonce);
-    }
-
     setIsRefreshing(true);
     try {
-      const data = await rpcClient.getBalance(wallet.address);
+      // Fetch with automatic deduplication (prevents storm!)
+      const data = await balanceCache.fetchWithDedup(
+        wallet.address,
+        async (addr) => await rpcClient.getBalance(addr)
+      );
+
+      // Batch state updates (single re-render!)
       setBalance(data.balance);
       setNonce(data.nonce);
 
-      // SILENTLY update the balance in the full wallets list too
+      // Update wallet list
       if (activeWalletIndex !== -1) {
         setWallets(prev => {
           const updated = [...prev];
           if (updated[activeWalletIndex]) {
-            updated[activeWalletIndex] = { ...updated[activeWalletIndex], lastKnownBalance: data.balance };
+            updated[activeWalletIndex] = {
+              ...updated[activeWalletIndex],
+              lastKnownBalance: data.balance
+            };
           }
           return updated;
         });
       }
 
-      // Cache for 10 seconds
-      cacheSet(cacheKey, data, 10000);
-
-      // Update token balance immediately
+      // Update native token balance
       if (allTokens.length > 0) {
         const updatedTokens = allTokens.map(t =>
           t.isNative ? { ...t, balance: data.balance } : t
         );
         setAllTokens(updatedTokens);
       }
+
+      // Save to cache with 25s TTL (slightly less than 30s refresh)
+      cacheSet(`balance_${wallet.address}`, data, 25000);
+
     } catch (error) {
       if (error.message && error.message.includes('Sender not found')) {
         setBalance(0);
         setNonce(0);
-
         if (allTokens.length > 0) {
-          const updatedTokens = allTokens.map(t =>
-            t.isNative ? { ...t, balance: 0 } : t
-          );
-          setAllTokens(updatedTokens);
+          setAllTokens(allTokens.map(t => t.isNative ? { ...t, balance: 0 } : t));
         }
       } else {
         console.error('Failed to fetch balance:', error);
@@ -236,14 +234,18 @@ function App() {
     }
   }, [wallet, rpcClient, allTokens, activeWalletIndex]);
 
-  // BACKGROUND: Refresh ALL wallet balances every 30s
+  // BACKGROUND: Refresh ALL wallet balances (OPTIMIZED with staggering & deduplication)
   const refreshAllBalances = useCallback(async () => {
     if (!isUnlocked || wallets.length === 0) return;
 
     try {
+      // Use balanceCache for deduplication
       const updatedWallets = await Promise.all(wallets.map(async (w) => {
         try {
-          const data = await rpcClient.getBalance(w.address);
+          const data = await balanceCache.fetchWithDedup(
+            w.address,
+            async (addr) => await rpcClient.getBalance(addr)
+          );
           return { ...w, lastKnownBalance: data.balance };
         } catch (err) {
           if (err.message && err.message.includes('Sender not found')) {
@@ -253,11 +255,11 @@ function App() {
         }
       }));
 
-      // Only update if something actually changed to avoid unnecessary re-renders
+      // Only update if something actually changed
       const hasChanges = updatedWallets.some((w, i) => w.lastKnownBalance !== wallets[i].lastKnownBalance);
       if (hasChanges) {
         setWallets(updatedWallets);
-        // Persist to storage so they are there on next login
+        // Persist to storage
         const { saveWallets: saveWalletsToStorage } = await import('./utils/storage.js');
         await saveWalletsToStorage(updatedWallets, password);
       }
@@ -351,35 +353,72 @@ function App() {
         console.log('Staging fetch skipped:', stagingError.message);
       }
 
+
       // Merge: pending first, then confirmed
-      setTransactions([...pendingTxs, ...confirmedTxs]);
+      const allTxs = [...pendingTxs, ...confirmedTxs];
+      setTransactions(allTxs);
+
+      // Cache transactions with 55s TTL (slightly less than 60s refresh)
+      cacheSet(`txs_${wallet.address}`, allTxs, 55000);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
     }
   }, [wallet, rpcClient, password]);
 
-  // Fetch balance when wallet is available
+  // Smart refresh - Simple & Smooth like MetaMask
   useEffect(() => {
     if (wallet && view === 'dashboard' && isUnlocked) {
-      refreshBalance();
-      refreshTransactions();
-      refreshAllBalances(); // Initial check for all
+      // Clear old data & show loading
+      setBalance(0);
+      setNonce(0);
+      setTransactions([]);
+      setIsRefreshing(true);
 
+      // Load from cache instantly (if available)
+      const cachedBalance = cacheGet(`balance_${wallet.address}`);
+      if (cachedBalance) {
+        setBalance(cachedBalance.balance || 0);
+        setNonce(cachedBalance.nonce || 0);
+      }
+
+      const cachedTxs = cacheGet(`txs_${wallet.address}`);
+      if (cachedTxs && Array.isArray(cachedTxs)) {
+        setTransactions(cachedTxs);
+      }
+
+      // Fetch fresh data (with error handling)
+      Promise.all([
+        refreshBalance().catch(err => console.warn('[Balance] Fetch failed:', err.message)),
+        refreshTransactions().catch(err => console.warn('[TX] Fetch failed:', err.message))
+      ]).finally(() => {
+        setIsRefreshing(false);
+      });
+
+      // Auto-refresh intervals
       const balanceInterval = setInterval(() => {
-        refreshBalance();
-        refreshTransactions();
-      }, 10000);
-
-      const allBalancesInterval = setInterval(() => {
-        refreshAllBalances();
+        refreshBalance().catch(() => { }); // Silent fail on auto-refresh
       }, 30000);
 
+      const txInterval = setInterval(() => {
+        refreshTransactions().catch(() => { }); // Silent fail on auto-refresh
+      }, 60000);
+
+      // Background wallet refresh (only if multiple wallets)
+      let walletRefreshTimeout;
+      if (wallets.length > 1) {
+        walletRefreshTimeout = setTimeout(() => {
+          refreshAllBalances().catch(() => { });
+        }, 120000);
+      }
+
+      // Cleanup on unmount or wallet switch
       return () => {
         clearInterval(balanceInterval);
-        clearInterval(allBalancesInterval);
+        clearInterval(txInterval);
+        if (walletRefreshTimeout) clearTimeout(walletRefreshTimeout);
       };
     }
-  }, [wallet, view, isUnlocked, refreshBalance, refreshTransactions, refreshAllBalances]);
+  }, [wallet?.address, view, isUnlocked]);
 
   // Load tokens on wallet change or balance update
   useEffect(() => {

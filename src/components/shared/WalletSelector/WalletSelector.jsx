@@ -118,17 +118,19 @@ export function WalletHeader({
     wallets = [],
     onOpenSelector
 }) {
+    // Custom truncation for header: Shortened to 5 chars start (0x...) + .. + 4 chars end
+    const displayAddress = wallet.address
+        ? `${wallet.address.slice(0, 5)}..${wallet.address.slice(-4)}`
+        : '...';
+
     return (
         <button className="wallet-header-btn" onClick={onOpenSelector}>
             <div className="header-wallet-icon">
                 <UbaLogo size={20} />
             </div>
             <span className="header-wallet-name">
-                {wallet.name || 'Wallet 1'}
+                {displayAddress}
             </span>
-            <div className="header-dropdown-icon">
-                <ChevronDownIcon size={14} />
-            </div>
         </button>
     );
 }

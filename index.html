@@ -9,11 +9,49 @@
   <meta name="description" content="Uba Wallet - Privacy, secure wallet for the Octra network" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' ws://localhost:5173 wss://localhost:5173 https://testnet.octra.network https://octra.network; base-uri 'self'; form-action 'self';" />
+
+  <!-- Preload critical assets for instant display -->
+  <link rel="preload" href="/octra-icon.svg" as="image" type="image/svg+xml" />
+
   <title>Uba Wallet</title>
 </head>
 
 <body>
+  <!-- Protect against wallet extension conflicts BEFORE anything else -->
+  <script>
+    // Super early protection against extension conflicts
+    (function () {
+      try {
+        // Check if ethereum is already defined
+        const existing = window.ethereum;
+
+        if (existing) {
+          // Already exists - try to protect it
+          try {
+            Object.defineProperty(window, 'ethereum', {
+              value: existing,
+              writable: false,
+              configurable: false
+            });
+          } catch (e) {
+            // Already protected or can't protect - silence the error
+          }
+        } else {
+          // Not defined yet - create a dummy to block evmAsk
+          Object.defineProperty(window, 'ethereum', {
+            value: null,
+            writable: true, // Allow our app to set it later
+            configurable: true // Allow reconfiguration
+          });
+        }
+      } catch (e) {
+        // Fail silently - don't break the app
+      }
+    })();
+  </script>
+
   <div id="root"></div>
+
   <script type="module" src="/src/main.jsx"></script>
 </body>
 

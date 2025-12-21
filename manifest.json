@@ -1,0 +1,47 @@
+{
+    "manifest_version": 3,
+    "name": "Octra Wallet",
+    "version": "1.0.0",
+    "description": "Secure Web3 wallet for Octra blockchain with FHE privacy features",
+    "permissions": [
+        "storage",
+        "alarms",
+        "notifications"
+    ],
+    "host_permissions": [
+        "https://octra.network/*",
+        "https://*.octra.network/*"
+    ],
+    "background": {
+        "service_worker": "src/background/service-worker.js",
+        "type": "module"
+    },
+    "action": {
+        "default_popup": "index.html",
+        "default_icon": {
+            "16": "public/logo-16.png",
+            "32": "public/logo-32.png",
+            "48": "public/logo-48.png",
+            "128": "public/logo-128.png"
+        }
+    },
+    "icons": {
+        "16": "public/logo-16.png",
+        "32": "public/logo-32.png",
+        "48": "public/logo-48.png",
+        "128": "public/logo-128.png"
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "index.html"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}

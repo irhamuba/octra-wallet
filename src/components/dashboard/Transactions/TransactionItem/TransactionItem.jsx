@@ -2,25 +2,12 @@ import { formatAmount, truncateAddress } from '../../../../utils/crypto';
 import { ArrowUpRightIcon, ArrowDownLeftIcon, ShieldIcon, UnshieldIcon, PrivateTransferIcon, ClaimIcon } from '../../../../components/shared/Icons';
 import './TransactionItem.css';
 
-function formatTimeAgo(timestamp) {
-    if (!timestamp) return '';
-
-    const now = Date.now();
-    const diff = now - timestamp;
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days}d ago`;
-    if (hours > 0) return `${hours}h ago`;
-    if (minutes > 0) return `${minutes}m ago`;
-    return 'Just now';
-}
-
 export function TransactionItem({ tx, onClick }) {
     const isIncoming = tx.type === 'in' || tx.type === 'claim' || tx.type === 'unshield';
-    const timeAgo = formatTimeAgo(tx.timestamp);
+
+    // Address subtitle: "To 0x1234...5678" or "From 0x1234...5678"
+    const displayAddress = truncateAddress(tx.address, 4, 4);
+    const addressSubtitle = isIncoming ? `From ${displayAddress}` : `To ${displayAddress}`;
 
     let Icon = isIncoming ? ArrowDownLeftIcon : ArrowUpRightIcon;
     let iconClass = isIncoming ? 'incoming' : 'outgoing';
@@ -31,12 +18,12 @@ export function TransactionItem({ tx, onClick }) {
         case 'shield':
             Icon = ShieldIcon;
             iconClass = 'shield';
-            title = 'Shielded Balance';
+            title = 'Shielded';
             break;
         case 'unshield':
             Icon = UnshieldIcon;
             iconClass = 'unshield';
-            title = 'Unshielded Balance';
+            title = 'Unshielded';
             break;
         case 'private':
             Icon = PrivateTransferIcon;
@@ -46,7 +33,7 @@ export function TransactionItem({ tx, onClick }) {
         case 'claim':
             Icon = ClaimIcon;
             iconClass = 'claim';
-            title = 'Claimed Transfer';
+            title = 'Claimed';
             break;
         case 'in':
             title = 'Received';
@@ -67,18 +54,19 @@ export function TransactionItem({ tx, onClick }) {
                 <div className="tx-item-info">
                     <div className="flex items-center gap-xs">
                         <span className="tx-item-title">{title}</span>
-                        {tx.status === 'pending' && (
+                        {isPending && (
                             <span className="tx-pending-badge">Pending</span>
                         )}
                     </div>
-                    <span className="tx-item-subtitle">{truncateAddress(tx.address, 6, 4)}</span>
+                    {/* Address subtitle: To/From address */}
+                    <span className="tx-item-subtitle">{addressSubtitle}</span>
                 </div>
             </div>
             <div className="tx-item-side">
                 <div className={`tx-item-amount ${iconClass}`}>
                     {isIncoming ? '+' : '-'}{formatAmount(tx.amount)}
                 </div>
-                <div className="tx-item-time">{timeAgo}</div>
+                {/* Minimalist: Removed relative time since we show full date */}
             </div>
         </div>
     );

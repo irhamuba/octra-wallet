@@ -13,7 +13,8 @@ import {
     SettingsIcon,
     WalletIcon,
     PrivacyIcon,
-    CheckIcon
+    CheckIcon,
+    CopyIcon
 } from '../shared/Icons';
 import { WalletSelector, WalletHeader } from '../shared/WalletSelector';
 import { Toast } from '../shared/Toast';
@@ -166,7 +167,7 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
 
                 <div className="header-actions">
                     <button className="header-icon-btn" onClick={handleHeaderCopy} title="Copy Address">
-                        {headerCopied ? <CheckIcon size={18} /> : <WalletIcon size={18} />}
+                        {headerCopied ? <CheckIcon size={18} className="animate-fade-in-scale" /> : <CopyIcon size={18} />}
                     </button>
                     <button className="header-icon-btn" onClick={onOpenSettings}>
                         <SettingsIcon size={18} />

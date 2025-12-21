@@ -15,7 +15,12 @@
 
 import { getRpcClient } from '../utils/rpc';
 import { base64ToBuffer, bufferToBase64 } from '../utils/crypto';
-import { savePrivacyTransaction } from '../utils/storage';
+import {
+    savePrivacyTransactionSecure,
+    getPrivacyBalanceCacheSecure,
+    savePrivacyBalanceCacheSecure,
+    clearPrivacyBalanceCacheSecure
+} from '../utils/storageSecure';
 import { keyringService } from './KeyringService';
 import nacl from 'tweetnacl';
 
@@ -78,6 +83,7 @@ class PrivacyService {
         this.rpcClient = getRpcClient();
         this._privateKey = null;
         this._publicKey = null;
+        this._password = null; // Store session password for cache encryption
     }
 
     /**
@@ -120,11 +126,12 @@ class PrivacyService {
     }
 
     /**
-     * Set the wallet private key and derive corresponding public key
+     * Set the wallet private key and session password for cache encryption
      */
-    setPrivateKey(privateKeyB64) {
+    setPrivateKey(privateKeyB64, password = null) {
         if (!privateKeyB64) return;
         this._privateKey = privateKeyB64;
+        this._password = password; // Store for cache encryption
         try {
             // Try to derive public key immediately, but don't crash if nacl isn't ready
             if (nacl) {
@@ -138,11 +145,12 @@ class PrivacyService {
     }
 
     /**
-     * Clear private key from memory
+     * Clear private key and password from memory
      */
     clearPrivateKey() {
         this._privateKey = null;
         this._publicKey = null;
+        this._password = null; // Clear password too
     }
 
     /**
@@ -153,7 +161,7 @@ class PrivacyService {
     }
 
     /**
-     * Get encrypted balance for an address
+     * Get encrypted balance for an address (with cached support)
      */
     async getEncryptedBalance(address) {
         try {
@@ -175,6 +183,24 @@ class PrivacyService {
                 };
             }
 
+            // Try cache first (if password available)
+            if (this._password) {
+                try {
+                    const cached = await getPrivacyBalanceCacheSecure(address, this._password);
+                    if (cached) {
+                        console.log('[PrivacyService] Using cached encrypted balance');
+                        return {
+                            ...cached,
+                            fromCache: true
+                        };
+                    }
+                } catch (error) {
+                    console.warn('[PrivacyService] Cache read failed:', error);
+                    // Continue to fetch from RPC
+                }
+            }
+
+            // Fetch from RPC
             const response = await fetch(
                 `${this.getRpcUrl()}/view_encrypted_balance/${address}`,
                 {
@@ -189,7 +215,7 @@ class PrivacyService {
 
             if (!response.ok) {
                 if (response.status === 404) {
-                    return {
+                    const result = {
                         success: true,
                         publicBalance: 0,
                         publicBalanceRaw: 0,
@@ -198,6 +224,13 @@ class PrivacyService {
                         totalBalance: 0,
                         hasEncryptedFunds: false
                     };
+
+                    // Cache the result
+                    if (this._password) {
+                        await savePrivacyBalanceCacheSecure(address, result, this._password);
+                    }
+
+                    return result;
                 }
                 const errorText = await response.text();
                 throw new Error(errorText || `HTTP ${response.status}`);
@@ -212,7 +245,7 @@ class PrivacyService {
                 return parseFloat(parts[0]) || 0;
             };
 
-            return {
+            const result = {
                 success: true,
                 publicBalance: parseBalance(data.public_balance),
                 publicBalanceRaw: parseInt(data.public_balance_raw || '0'),
@@ -221,6 +254,18 @@ class PrivacyService {
                 totalBalance: parseBalance(data.total_balance),
                 hasEncryptedFunds: parseInt(data.encrypted_balance_raw || '0') > 0
             };
+
+            // Save to encrypted cache (non-blocking)
+            if (this._password) {
+                try {
+                    await savePrivacyBalanceCacheSecure(address, result, this._password);
+                } catch (error) {
+                    console.warn('[PrivacyService] Cache save failed:', error);
+                    // Non-fatal
+                }
+            }
+
+            return result;
         } catch (error) {
             console.error('getEncryptedBalance error:', error);
             return {
@@ -282,7 +327,11 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
-                savePrivacyTransaction(result.tx_hash, 'shield', { amount });
+                await savePrivacyTransactionSecure(result.tx_hash, 'shield', { amount }, this._password);
+                // Invalidate cache since balance changed
+                if (this._password) {
+                    await clearPrivacyBalanceCacheSecure(address, this._password);
+                }
                 return { success: true, txHash: result.tx_hash };
             }
 
@@ -341,7 +390,11 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
-                savePrivacyTransaction(result.tx_hash, 'unshield', { amount });
+                await savePrivacyTransactionSecure(result.tx_hash, 'unshield', { amount }, this._password);
+                // Invalidate cache since balance changed
+                if (this._password) {
+                    await clearPrivacyBalanceCacheSecure(address, this._password);
+                }
                 return { success: true, txHash: result.tx_hash };
             }
 
@@ -431,7 +484,11 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
-                savePrivacyTransaction(result.tx_hash, 'private', { amount, to });
+                await savePrivacyTransactionSecure(result.tx_hash, 'private', { amount, to }, this._password);
+                // Invalidate sender's cache
+                if (this._password) {
+                    await clearPrivacyBalanceCacheSecure(from, this._password);
+                }
                 return { success: true, txHash: result.tx_hash };
             }
 
@@ -511,7 +568,7 @@ class PrivacyService {
             }
 
             if (response.ok && result.tx_hash) {
-                savePrivacyTransaction(result.tx_hash, 'claim', { transferId });
+                await savePrivacyTransactionSecure(result.tx_hash, 'claim', { transferId }, this._password);
                 return { success: true, txHash: result.tx_hash };
             }
 

@@ -44,6 +44,11 @@
     background: var(--bg-elevated);
 }
 
+.wallet-card:active {
+    background: var(--bg-elevated);
+    transform: scale(0.99);
+}
+
 .wallet-card.active {
     background: var(--bg-elevated);
 }

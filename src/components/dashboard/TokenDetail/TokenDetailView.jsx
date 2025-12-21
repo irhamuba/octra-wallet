@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatAmount } from '../../../utils/crypto';
+import { formatAmount, truncateAddress } from '../../../utils/crypto';
 import { TokenIcon } from '../../shared/TokenIcon';
 import { SendIcon, ReceiveIcon, SwapIcon } from './TokenDetailIcons';
 import { TransactionDetailModal } from '../Transactions';
@@ -66,24 +66,30 @@ export function TokenDetailView({ token, onBack, onSend, onReceive, transactions
                     </div>
                 ) : (
                     <div className="td-txs">
-                        {tokenTxs.slice(0, 10).map((tx, i) => (
-                            <div
-                                key={i}
-                                className="td-tx td-tx-clickable"
-                                onClick={() => setSelectedTx(tx)}
-                            >
-                                <div className={`td-tx-icon ${tx.type}`}>
-                                    {tx.type === 'in' ? <ReceiveIcon /> : <SendIcon />}
+                        {tokenTxs.slice(0, 10).map((tx, i) => {
+                            const isIncoming = tx.type === 'in';
+                            const displayAddress = truncateAddress(tx.address, 4, 4);
+                            const addressSubtitle = isIncoming ? `From ${displayAddress}` : `To ${displayAddress}`;
+
+                            return (
+                                <div
+                                    key={i}
+                                    className="td-tx td-tx-clickable"
+                                    onClick={() => setSelectedTx(tx)}
+                                >
+                                    <div className={`td-tx-icon ${tx.type}`}>
+                                        {isIncoming ? <ReceiveIcon /> : <SendIcon />}
+                                    </div>
+                                    <div className="td-tx-info">
+                                        <span className="td-tx-type">{isIncoming ? 'Received' : 'Sent'}</span>
+                                        <span className="td-tx-date">{addressSubtitle}</span>
+                                    </div>
+                                    <span className={`td-tx-amt ${tx.type}`}>
+                                        {isIncoming ? '+' : '-'}{formatAmount(tx.amount)}
+                                    </span>
                                 </div>
-                                <div className="td-tx-info">
-                                    <span className="td-tx-type">{tx.type === 'in' ? 'Received' : 'Sent'}</span>
-                                    <span className="td-tx-date">{new Date(tx.timestamp).toLocaleDateString()}</span>
-                                </div>
-                                <span className={`td-tx-amt ${tx.type}`}>
-                                    {tx.type === 'in' ? '+' : '-'}{formatAmount(tx.amount)}
-                                </span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

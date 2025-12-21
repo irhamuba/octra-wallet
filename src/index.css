@@ -216,6 +216,10 @@ body {
   white-space: nowrap;
 }
 
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -232,7 +236,7 @@ body {
 }
 
 .btn-primary:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.96) translateY(0);
 }
 
 .btn-secondary {
@@ -856,33 +860,60 @@ textarea.input {
 .invisible {
   visibility: hidden;
 }
+
 /* Ghost Animation Global */
 @keyframes ghostFloat {
-    0%, 100% { transform: translateY(0px); opacity: 0.5; }
-    50% { transform: translateY(-8px); opacity: 0.8; }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: translateY(-8px);
+    opacity: 0.8;
+  }
 }
+
 .ghost-icon {
-    animation: ghostFloat 3s ease-in-out infinite;
-    color: var(--text-tertiary);
+  animation: ghostFloat 3s ease-in-out infinite;
+  color: var(--text-tertiary);
 }
 
 /* Detailed Ghost Character Animation */
 .ghost-body {
-    animation: ghostBodyFloat 3s ease-in-out infinite;
-    transform-origin: center;
+  animation: ghostBodyFloat 3s ease-in-out infinite;
+  transform-origin: center;
 }
 
 .ghost-shadow {
-    animation: ghostShadowScale 3s ease-in-out infinite;
-    transform-origin: center;
+  animation: ghostShadowScale 3s ease-in-out infinite;
+  transform-origin: center;
 }
 
 @keyframes ghostBodyFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes ghostShadowScale {
-    0%, 100% { transform: scale(1); opacity: 0.2; }
-    50% { transform: scale(0.8); opacity: 0.1; }
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+
+  50% {
+    transform: scale(0.8);
+    opacity: 0.1;
+  }
 }

@@ -3,7 +3,7 @@
  * Displays token image from URL or fallback to placeholder
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { OctraLogo, OctraTokenLogo } from '../Icons';
 import './TokenIcon.css';
 
@@ -18,6 +18,17 @@ const KNOWN_TOKENS = {
         logoType: 'native'
     }
 };
+
+// Preload OCT logo immediately
+const preloadOctraLogo = () => {
+    const img = new Image();
+    img.src = '/octra-icon.svg';
+};
+
+// Preload on module load
+if (typeof window !== 'undefined') {
+    preloadOctraLogo();
+}
 
 /**
  * TokenIcon - Displays token image with fallback
@@ -34,7 +45,14 @@ export function TokenIcon({ symbol, logoUrl, size = 40, color = '#00D4FF' }) {
     const tokenInfo = KNOWN_TOKENS[symbol];
     const isNative = tokenInfo?.logoType === 'native';
 
-    // If native OCT token, use Octra icon from public folder
+    // Preload OCT icon on mount
+    useEffect(() => {
+        if (isNative && symbol === 'OCT') {
+            preloadOctraLogo();
+        }
+    }, [isNative, symbol]);
+
+    // If native OCT token, use Octra icon - ALWAYS SHOW INSTANTLY
     if (isNative && symbol === 'OCT') {
         return (
             <div
@@ -53,13 +71,24 @@ export function TokenIcon({ symbol, logoUrl, size = 40, color = '#00D4FF' }) {
                     alt="OCT"
                     width={size}
                     height={size}
+                    loading="eager"
+                    decoding="sync"
                     style={{
                         display: 'block',
                         imageRendering: 'auto',
                         WebkitUserSelect: 'none',
                         userSelect: 'none'
                     }}
+                    onError={(e) => {
+                        // Fallback to inline SVG if file fails
+                        console.warn('OCT icon failed to load, using fallback');
+                        e.target.style.display = 'none';
+                    }}
                 />
+                {/* Always show fallback if image fails */}
+                <noscript>
+                    <div className="token-icon-fallback">OCT</div>
+                </noscript>
             </div>
         );
     }

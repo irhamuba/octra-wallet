@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "argon2-browser": "^1.18.0",
     "bip39": "^3.1.0",
     "buffer": "^6.0.3",
     "lottie-react": "^2.4.1",
@@ -21,6 +20,7 @@
     "tweetnacl-util": "^0.15.1"
   },
   "devDependencies": {
+    "@crxjs/vite-plugin": "^2.3.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.57.0",
     "@types/argon2-browser": "^1.18.4",
@@ -31,7 +31,10 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "strip-literal": "^3.1.0",
+    "terser": "^5.44.1",
     "vite": "^7.2.4",
-    "vite-plugin-sri": "^0.0.2"
+    "vite-plugin-sri": "^0.0.2",
+    "vite-plugin-static-copy": "^3.1.4"
   }
 }
