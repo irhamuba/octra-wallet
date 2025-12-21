@@ -295,7 +295,7 @@ export function clearAllData() {
 
 const DEFAULT_SETTINGS = {
     network: 'testnet',
-    rpcUrl: import.meta.env.VITE_RPC_URL || 'https://octra.network',
+    rpcUrl: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_RPC_URL) || 'https://octra.network',
     currency: 'USD',
     theme: 'dark',
     autoLockMinutes: 5,
@@ -309,7 +309,7 @@ export function getSettings() {
         // AUTO-MIGRATION: Fix legacy proxy paths to real URL
         // We now handle proxying internally in rpc.js, so we store the REAL URL
         if (settings.rpcUrl === '/api' || settings.rpcUrl === '/api/rpc') {
-            const realUrl = import.meta.env.VITE_RPC_URL || 'https://octra.network';
+            const realUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_RPC_URL) || 'https://octra.network';
             console.log(`🔧 Reverting RPC path to URL: ${settings.rpcUrl} → ${realUrl}`);
             settings.rpcUrl = realUrl;
             saveSettings(settings);

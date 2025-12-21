@@ -2,8 +2,8 @@
  * Price Service - Fetches token prices from CoinGecko API
  */
 
-const COINGECKO_API_URL = import.meta.env.VITE_COINGECKO_API_URL || 'https://api.coingecko.com/api/v3';
-const COINGECKO_API_KEY = import.meta.env.VITE_COINGECKO_API_KEY;
+const COINGECKO_API_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_COINGECKO_API_URL) || 'https://api.coingecko.com/api/v3';
+const COINGECKO_API_KEY = typeof import.meta !== 'undefined' ? import.meta.env.VITE_COINGECKO_API_KEY : undefined;
 
 // Cache for price data (5 min TTL)
 const priceCache = new Map();

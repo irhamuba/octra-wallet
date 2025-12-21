@@ -4,12 +4,12 @@
  */
 
 // Use proxy in development AND production to bypass CORS
-const isDev = import.meta.env.DEV;
+const isDev = (typeof import.meta !== 'undefined' && import.meta.env?.DEV) || false;
 
 // Network RPC URLs
 export const RPC_URLS = {
     mainnet: '', // Mainnet coming soon
-    testnet: import.meta.env.VITE_RPC_URL || 'https://octra.network',
+    testnet: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_RPC_URL) || 'https://octra.network',
 };
 
 // ALWAYS use proxy to avoid CORS issues
