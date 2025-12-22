@@ -1,10 +1,9 @@
 /**
  * RPC Client for Octra Blockchain
  * Handles communication with the Octra network
+ * 
+ * EXTENSION MODE: Direct RPC connection (no CORS restrictions)
  */
-
-// Use proxy in development AND production to bypass CORS
-const isDev = (typeof import.meta !== 'undefined' && import.meta.env?.DEV) || false;
 
 // Network RPC URLs
 export const RPC_URLS = {
@@ -12,11 +11,9 @@ export const RPC_URLS = {
     testnet: (typeof import.meta !== 'undefined' && import.meta.env?.VITE_RPC_URL) || 'https://octra.network',
 };
 
-// ALWAYS use proxy to avoid CORS issues
-// Development: Vite dev proxy (/api)
-// Production: Vercel Edge Function (/api/rpc)
-const DEFAULT_RPC = isDev ? '/api' : '/api/rpc';
-const ACTUAL_RPC = RPC_URLS.testnet;
+// EXTENSION MODE: Direct connection to blockchain node
+// Browser extensions bypass CORS, no proxy needed!
+const DEFAULT_RPC = RPC_URLS.testnet;
 
 class RPCClient {
     constructor(rpcUrl = DEFAULT_RPC) {
@@ -25,28 +22,11 @@ class RPCClient {
     }
 
     setRpcUrl(url) {
-        // If already using internal proxy paths, keep them
-        if (url === '/api' || url === '/api/rpc') {
-            this.rpcUrl = url;
-            return;
-        }
-
-        // Always use proxy for octra.network to avoid CORS
-        if (url === ACTUAL_RPC || url.startsWith('https://octra.network')) {
-            this.rpcUrl = isDev ? '/api' : '/api/rpc';
-        } else if (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
-            // Local nodes can be accessed directly
-            this.rpcUrl = url;
-        } else {
-            // Custom RPC URL - use directly (must support CORS)
-            this.rpcUrl = url;
-        }
+        // Direct connection - no proxy logic needed for extension
+        this.rpcUrl = url || DEFAULT_RPC;
     }
 
     getActualRpcUrl() {
-        if (this.rpcUrl === '/api' || this.rpcUrl === '/api/rpc') {
-            return ACTUAL_RPC;
-        }
         return this.rpcUrl;
     }
 
