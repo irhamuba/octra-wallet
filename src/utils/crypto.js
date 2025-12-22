@@ -205,7 +205,9 @@ export async function createOctraAddress(publicKey) {
  */
 export function verifyAddressFormat(address) {
     if (!address.startsWith('oct')) return false;
-    if (address.length !== 47) return false;
+    // Base 58 encoding of 32-byte hash can be 43 or 44 chars.
+    // Plus 3 chars for 'oct' prefix = 46 or 47.
+    if (address.length < 46 || address.length > 47) return false;
 
     const base58Part = address.slice(3);
     for (const char of base58Part) {
@@ -370,15 +372,46 @@ export function verifySignature(message, signature, publicKeyB64) {
  * Create and sign a transaction
  */
 export function createTransaction(from, to, amount, nonce, privateKeyB64, message = null) {
-    const μ = 1_000_000;
-    const amountRaw = Math.floor(amount * μ);
+    // FIX: Use string manipulation to avoid floating point errors
+    // e.g. 0.29 * 1000000 = 289999.99... (WRONG)
+    // We want 0.29 -> 290000 (CORRECT)
+
+    // Convert to string and normalize
+    let amountStr = typeof amount === 'number' ? amount.toString() : amount;
+
+    // Handle scientific notation if small
+    if (amountStr.includes('e')) {
+        amountStr = Number(amount).toFixed(20);
+    }
+
+    const parts = amountStr.split('.');
+    let integerPart = parts[0];
+    let fractionalPart = parts[1] || '';
+
+    // Pad or truncate to 6 decimal places (micro-units)
+    if (fractionalPart.length > 6) {
+        fractionalPart = fractionalPart.substring(0, 6);
+    } else {
+        while (fractionalPart.length < 6) {
+            fractionalPart += '0';
+        }
+    }
+
+    // Combine to get raw micro-units
+    // Remove leading zeros from integer part unless it's just "0"
+    if (integerPart === '0') integerPart = '';
+
+    const amountRaw = integerPart + fractionalPart;
+    // If result is emptyString (0.000000), default to '0'. 
+    // But usually we send at least 1 micro unit.
+    const finalAmount = amountRaw.replace(/^0+/, '') || '0';
 
     const tx = {
         from,
         to_: to,
-        amount: String(amountRaw),
+        amount: finalAmount, // String representation of integer micro-units
         nonce: parseInt(nonce),
-        ou: amount < 1000 ? '1' : '3',
+        ou: parseFloat(amount) < 0.001 ? '1' : '3', // Keep rough logic for 'ou' or update later
         timestamp: Date.now() / 1000
     };
 

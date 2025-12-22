@@ -47,7 +47,7 @@ export function ConfirmTransactionModal({
                         </div>
                         <h3 className="ctm-title">Send</h3>
                         <p className="ctm-amount">
-                            <span className="ctm-amount-value">-{formatAmount(parseFloat(amount))}</span>
+                            <span className="ctm-amount-value">-{formatAmount(parseFloat(amount), 6)}</span>
                             <span className="ctm-amount-symbol">{tokenSymbol}</span>
                         </p>
                     </div>
@@ -58,7 +58,7 @@ export function ConfirmTransactionModal({
                             <span className="ctm-label">Est. network fee</span>
                             <div className="ctm-fee-info">
                                 <span className="ctm-fee-badge">{getSpeedLabel()}</span>
-                                <span className="ctm-fee-value">{formatAmount(fee)} {tokenSymbol}</span>
+                                <span className="ctm-fee-value">{formatAmount(fee, 6)} {tokenSymbol}</span>
                                 <ChevronRightIcon size={14} />
                             </div>
                         </div>
@@ -72,13 +72,28 @@ export function ConfirmTransactionModal({
                         {/* To */}
                         <div className="ctm-row">
                             <span className="ctm-label">To</span>
-                            <span className="ctm-value ctm-address">{truncateAddress(recipient, 12, 10)}</span>
+                            <span
+                                className="ctm-value ctm-address"
+                                style={{
+                                    fontSize: '12px',
+                                    fontFamily: "'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace",
+                                    letterSpacing: '0.02em',
+                                    wordBreak: 'break-all',
+                                    lineHeight: '1.5',
+                                    display: 'inline-block',
+                                    maxWidth: '85%'
+                                }}
+                            >
+                                <span style={{ fontWeight: '700', opacity: 1 }}>{recipient.slice(0, 5)}</span>
+                                <span style={{ opacity: 0.6 }}>{recipient.slice(5, -5)}</span>
+                                <span style={{ fontWeight: '700', opacity: 1 }}>{recipient.slice(-5)}</span>
+                            </span>
                         </div>
 
                         {/* Total */}
                         <div className="ctm-row ctm-row-total">
                             <span className="ctm-label">Total</span>
-                            <span className="ctm-value ctm-total">{formatAmount(total)} {tokenSymbol}</span>
+                            <span className="ctm-value ctm-total">{formatAmount(total, 6)} {tokenSymbol}</span>
                         </div>
                     </div>
 

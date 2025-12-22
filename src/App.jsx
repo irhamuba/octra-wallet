@@ -750,6 +750,7 @@ function App() {
           password={password}
           onUpdateSettings={handleUpdateSettings}
           onDisconnect={handleDisconnect}
+          onLock={handleLock}
           onBack={() => setView('dashboard')}
         />
       )}

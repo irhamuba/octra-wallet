@@ -503,9 +503,15 @@ class KeyringService {
         console.warn('[KeyringService] PANIC LOCK ACTIVATED');
         this.lock();
 
-        // Force garbage collection if available (V8)
-        if (global.gc) {
-            global.gc();
+        // Force garbage collection if available (V8/Node)
+        try {
+            if (typeof global !== 'undefined' && global && global.gc) {
+                global.gc();
+            } else if (typeof window !== 'undefined' && window && window.gc) {
+                window.gc();
+            }
+        } catch (e) {
+            // Ignore GC errors
         }
     }
 }

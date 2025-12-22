@@ -21,10 +21,11 @@ import {
     AlertIcon
 } from '../shared/Icons';
 import { truncateAddress } from '../../utils/crypto';
-import { exportWallet, verifyPassword, changePassword } from '../../utils/storage';
+import { verifyPassword, changePassword, exportWallet } from '../../utils/storage';
 import { NetworkSwitcher } from './NetworkSwitcher/NetworkSwitcher';
+import { keyringService } from '../../services/KeyringService';
 
-export function SettingsScreen({ wallet, settings, password, onUpdateSettings, onDisconnect, onBack }) {
+export function SettingsScreen({ wallet, settings, password, onUpdateSettings, onDisconnect, onLock, onBack }) {
     const [view, setView] = useState('main'); // 'main' | 'network' | 'export' | 'recovery-phrase' | 'change-password' | 'sign-message'
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [copied, setCopied] = useState('');
@@ -49,6 +50,12 @@ export function SettingsScreen({ wallet, settings, password, onUpdateSettings, o
         if (window.confirm('Are you sure you want to disconnect this wallet? Make sure you have backed up your recovery phrase or private key.')) {
             onDisconnect();
         }
+    };
+
+    const handlePanicLock = () => {
+        // Immediate action, no confirmation for panic
+        keyringService.panicLock();
+        if (onLock) onLock();
     };
 
     if (view === 'network') {
@@ -255,6 +262,21 @@ export function SettingsScreen({ wallet, settings, password, onUpdateSettings, o
                         </div>
                     </div>
                 )}
+
+                {/* Emergency Zone */}
+                <div className="settings-section">
+                    <div className="settings-section-title text-error">Emergency</div>
+
+                    <div className="settings-item settings-item-danger" onClick={handlePanicLock}>
+                        <div className="flex items-center gap-md">
+                            <AlertIcon size={20} />
+                            <div className="settings-item-content">
+                                <div className="settings-item-label">Panic Lock</div>
+                                <div className="settings-item-value">Immediately lock and wipe memory</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {/* Danger Zone */}
                 <div className="settings-section">

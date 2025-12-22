@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import Lottie from 'lottie-react';
+import Lottie from 'lottie-react'; // Restore for success animation
 import { getRpcClient } from '../../utils/rpc';
 import {
     UbaLogo,
@@ -28,8 +28,10 @@ import { getPasswordStrength } from '../../utils/validation';
 import './WelcomeScreen.css';
 import './SuccessSplash.css';
 
-// Import Lottie animation
+// Import Lottie animations
 import successAnimation from './animations/step-complete.json';
+import { UbaAnimatedIcon } from './animations/UbaAnimatedIcon';
+// welcomePrivacyAnimation removed
 
 // Success Splash Component - Using Lottie animation
 function SuccessSplash({ onFinish }) {
@@ -67,9 +69,9 @@ export function WelcomeScreen({ onCreateWallet, onImportWallet }) {
     return (
         <div className="onboarding-container welcome-centered animate-fade-in">
 
-            <div className="onboarding-header animate-slide-up">
+            <div className="onboarding-header animate-fade-in-scale">
                 <div className="onboarding-logo">
-                    <UbaLogo size={64} />
+                    <UbaAnimatedIcon />
                 </div>
             </div>
 

@@ -316,7 +316,7 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                         <div className="send-balance-info">
                             <span className="text-secondary text-xs">Available Balance</span>
                             <span className="text-lg font-bold">
-                                {isLoadingBalance ? '...' : formatAmount(tokenBalance)} {selectedToken?.symbol}
+                                {isLoadingBalance ? '...' : formatAmount(tokenBalance, 6)} {selectedToken?.symbol}
                             </span>
                         </div>
                     </div>
@@ -361,15 +361,15 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                         <div className="card mb-lg">
                             <div className="confirm-row">
                                 <span className="confirm-label">Amount</span>
-                                <span className="confirm-value">{formatAmount(parseFloat(amount))} {selectedToken?.symbol}</span>
+                                <span className="confirm-value">{formatAmount(parseFloat(amount), 6)} {selectedToken?.symbol}</span>
                             </div>
                             <div className="confirm-row">
                                 <span className="confirm-label">Network Fee</span>
-                                <span className="confirm-value">{formatAmount(fee)} {selectedToken?.symbol}</span>
+                                <span className="confirm-value">{formatAmount(fee, 6)} {selectedToken?.symbol}</span>
                             </div>
                             <div className="confirm-row confirm-row-total">
                                 <span className="confirm-label">Total</span>
-                                <span className="confirm-value font-bold">{formatAmount(total)} {selectedToken?.symbol}</span>
+                                <span className="confirm-value font-bold">{formatAmount(total, 6)} {selectedToken?.symbol}</span>
                             </div>
                         </div>
                     )}
@@ -420,7 +420,22 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                         </div>
                         <div className="confirm-row">
                             <span className="confirm-label">To</span>
-                            <span className="confirm-value text-mono text-sm">{truncateAddress(recipient, 8, 6)}</span>
+                            <span
+                                className="confirm-value text-mono"
+                                style={{
+                                    fontSize: '12px',
+                                    fontFamily: "'SF Mono', 'Monaco', 'Consolas', 'Roboto Mono', monospace",
+                                    letterSpacing: '0.02em',
+                                    wordBreak: 'break-all',
+                                    lineHeight: '1.5',
+                                    display: 'inline-block',
+                                    maxWidth: '85%'
+                                }}
+                            >
+                                <span style={{ fontWeight: '700', opacity: 1 }}>{recipient.slice(0, 5)}</span>
+                                <span style={{ opacity: 0.6 }}>{recipient.slice(5, -5)}</span>
+                                <span style={{ fontWeight: '700', opacity: 1 }}>{recipient.slice(-5)}</span>
+                            </span>
                         </div>
                         <div className="confirm-row">
                             <span className="confirm-label">Network Fee</span>
@@ -428,7 +443,7 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                         </div>
                         <div className="confirm-row confirm-row-total">
                             <span className="confirm-label">Total Amount</span>
-                            <span className="confirm-value font-bold">{formatAmount(total)} {selectedToken?.symbol}</span>
+                            <span className="confirm-value font-bold">{formatAmount(total, 6)} {selectedToken?.symbol}</span>
                         </div>
                     </div>
 

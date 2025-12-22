@@ -47,22 +47,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
-    border-radius: var(--radius-md);
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
     color: var(--text-secondary);
     cursor: pointer;
     transition: all var(--transition-fast);
 }
 
 .header-icon-btn:hover {
-    background: var(--bg-hover);
+    background: transparent !important;
     color: var(--text-primary);
+    transform: scale(1.1);
 }
 
 .header-icon-btn:active {
-    transform: scale(0.94);
-    background: var(--bg-hover);
+    transform: scale(0.95);
+    background: transparent !important;
 }
 
 .header-icon-btn:disabled {
