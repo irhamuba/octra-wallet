@@ -71,6 +71,21 @@
     cursor: not-allowed;
 }
 
+/* Refresh Spin Animation */
+.spin-animation {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Address Pill in Header */
 .header-address-pill {
     display: flex;

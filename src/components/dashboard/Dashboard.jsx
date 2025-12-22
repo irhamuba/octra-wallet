@@ -14,7 +14,8 @@ import {
     WalletIcon,
     PrivacyIcon,
     CheckIcon,
-    CopyIcon
+    CopyIcon,
+    RefreshIcon
 } from '../shared/Icons';
 import { WalletSelector, WalletHeader } from '../shared/WalletSelector';
 import { Toast } from '../shared/Toast';
@@ -47,6 +48,12 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
             } catch (err) {
                 console.error('Failed to copy', err);
             }
+        }
+    };
+
+    const handleRefresh = () => {
+        if (onRefresh && !isRefreshing) {
+            onRefresh();
         }
     };
     const [showAddWallet, setShowAddWallet] = useState(false);
@@ -168,6 +175,14 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                 <div className="header-actions">
                     <button className="header-icon-btn" onClick={handleHeaderCopy} title="Copy Address">
                         {headerCopied ? <CheckIcon size={18} className="animate-fade-in-scale" /> : <CopyIcon size={18} />}
+                    </button>
+                    <button
+                        className="header-icon-btn"
+                        onClick={handleRefresh}
+                        title="Refresh Balance"
+                        disabled={isRefreshing}
+                    >
+                        <RefreshIcon size={18} className={isRefreshing ? 'spin-animation' : ''} />
                     </button>
                     <button className="header-icon-btn" onClick={onOpenSettings}>
                         <SettingsIcon size={18} />

@@ -33,7 +33,7 @@ export function TokenDetailView({ token, onBack, onSend, onReceive, transactions
 
             {/* Balance */}
             <div className="td-balance">
-                <span className="td-balance-amt">{formatAmount(token.balance)}</span>
+                <span className="td-balance-amt">{formatAmount(token.balance, 6)}</span>
                 <span className="td-balance-sym">{token.symbol}</span>
             </div>
 
@@ -85,7 +85,7 @@ export function TokenDetailView({ token, onBack, onSend, onReceive, transactions
                                         <span className="td-tx-date">{addressSubtitle}</span>
                                     </div>
                                     <span className={`td-tx-amt ${tx.type}`}>
-                                        {isIncoming ? '+' : '-'}{formatAmount(tx.amount)}
+                                        {isIncoming ? '+' : '-'}{formatAmount(tx.amount, 6)}
                                     </span>
                                 </div>
                             );
