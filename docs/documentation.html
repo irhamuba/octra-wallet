@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Octra Wallet - Documentation</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-code: #0a0e1a;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --accent: #8b5cf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .lang-switch {
+            position: fixed;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 0.5rem;
+            background: var(--bg-card);
+            padding: 0.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            z-index: 1000;
+        }
+
+        .lang-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .lang-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .audit-notice {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(239, 68, 68, 0.1));
+            border-left: 4px solid var(--warning);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .audit-notice h3 {
+            color: var(--warning);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .section h2 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-card {
+            background: var(--bg-main);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            transition: transform 0.3s, border-color 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .feature-desc {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-main);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .highlight-box {
+            background: var(--bg-code);
+            border-left: 3px solid var(--primary);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        code {
+            background: var(--bg-code);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: var(--accent);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            transition: background 0.3s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            background: var(--primary-dark);
+        }
+
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid var(--warning);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .danger-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+
+        ul,
+        ol {
+            margin-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+
+        li {
+            margin: 0.5rem 0;
+            color: var(--text-secondary);
+        }
+
+        a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .lang-switch {
+                top: 1rem;
+                right: 1rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="lang-switch">
+        <button class="lang-btn active" onclick="switchLang('en')">English</button>
+        <button class="lang-btn" onclick="switchLang('id')">Indonesia</button>
+    </div>
+
+    <div class="container">
+        <!-- ENGLISH VERSION -->
+        <div id="content-en" class="lang-content">
+            <header>
+                <div class="logo">🔐 Octra Wallet</div>
+                <div class="tagline">Secure Browser Extension for Octra Blockchain</div>
+            </header>
+
+            <div class="audit-notice">
+                <h3>⚠️ Security Audit Notice</h3>
+                <p><strong>Current Status: Under Security Audit</strong></p>
+                <p>This wallet is currently undergoing professional security auditing. The source code is <strong>not
+                        yet fully open source</strong> until the audit is complete and all identified issues are
+                    resolved.</p>
+                <p><strong>Expected Open Source Release:</strong> Q1 2026 (after audit completion)</p>
+                <p>We prioritize security over speed. Full transparency will be available once we ensure the highest
+                    security standards.</p>
+            </div>
+
+            <!-- Features Section -->
+            <div class="section">
+                <h2>✨ Key Features</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🚀</div>
+                        <div class="feature-title">100% Client-Side</div>
+                        <div class="feature-desc">No servers, no APIs, no middleman. Direct blockchain connection.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <div class="feature-title">Bank-Grade Security</div>
+                        <div class="feature-desc">AES-256-GCM encryption, Ed25519 signatures, secure memory management.
+                        </div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <div class="feature-title">Full Precision</div>
+                        <div class="feature-desc">6 decimal places support for accurate transaction amounts.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👛</div>
+                        <div class="feature-title">Multi-Wallet</div>
+                        <div class="feature-desc">Create unlimited wallets, easy switching between accounts.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔐</div>
+                        <div class="feature-title">Privacy Features</div>
+                        <div class="feature-desc">FHE encrypted balance, private transactions (experimental).</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📖</div>
+                        <div class="feature-title">Open Source (Soon)</div>
+                        <div class="feature-desc">Full transparency after security audit completion.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Policy Section -->
+            <div class="section">
+                <h2>🔒 Privacy & Data Usage</h2>
+
+                <h3>What Data We Store</h3>
+                <p><strong>ALL data is stored LOCALLY on your device only.</strong> Nothing is sent to our servers (we
+                    don't have servers!).</p>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data Type</th>
+                                <th>Storage Location</th>
+                                <th>Encrypted</th>
+                                <th>Shared</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Private Keys</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-success">✓ AES-256</span></td>
+                                <td><span class="badge badge-danger">✗ Never</span></td>
+                            </tr>
+                            <tr>
+                                <td>Passwords</td>
+                                <td>Local (hashed)</td>
+                                <td><span class="badge badge-success">✓ SHA-256</span></td>
+                                <td><span class="badge badge-danger">✗ Never</span></td>
+                            </tr>
+                            <tr>
+                                <td>Wallets</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-success">✓ AES-256</span></td>
+                                <td><span class="badge badge-danger">✗ Never</span></td>
+                            </tr>
+                            <tr>
+                                <td>Transactions</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-warning">No</span></td>
+                                <td><span class="badge badge-danger">✗ Never</span></td>
+                            </tr>
+                            <tr>
+                                <td>Settings</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-warning">No</span></td>
+                                <td><span class="badge badge-danger">✗ Never</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>What We DON'T Collect</h3>
+                <ul>
+                    <li>❌ Email addresses</li>
+                    <li>❌ Phone numbers</li>
+                    <li>❌ IP addresses</li>
+                    <li>❌ Browser fingerprints</li>
+                    <li>❌ Analytics events (No Google Analytics, Mixpanel, etc.)</li>
+                    <li>❌ Crash reports</li>
+                    <li>❌ Usage statistics</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <strong>Network Requests:</strong> The extension ONLY makes requests to
+                    <code>https://octra.network</code> (Octra Blockchain RPC Node). No third-party services, no
+                    analytics, nothing.
+                </div>
+            </div>
+
+            <!-- Security Section -->
+            <div class="section">
+                <h2>🛡️ Security Architecture</h2>
+
+                <h3>Cryptographic Standards</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Algorithm</th>
+                                <th>Security Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Wallet Encryption</td>
+                                <td>AES-256-GCM</td>
+                                <td><span class="badge badge-success">Military-Grade</span></td>
+                            </tr>
+                            <tr>
+                                <td>Digital Signatures</td>
+                                <td>Ed25519</td>
+                                <td><span class="badge badge-success">128-bit</span></td>
+                            </tr>
+                            <tr>
+                                <td>Password Hashing</td>
+                                <td>SHA-256</td>
+                                <td><span class="badge badge-success">256-bit</span></td>
+                            </tr>
+                            <tr>
+                                <td>Key Derivation</td>
+                                <td>PBKDF2 (100k iterations)</td>
+                                <td><span class="badge badge-success">Strong</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Security Features</h3>
+                <ul>
+                    <li>✅ Secure memory wipe after use</li>
+                    <li>✅ Auto-lock after 5 minutes of inactivity</li>
+                    <li>✅ Keys never logged or exposed</li>
+                    <li>✅ Direct RPC connection (no proxy)</li>
+                    <li>✅ Content Security Policy (CSP) protection</li>
+                </ul>
+
+                <div class="warning-box">
+                    <strong>⚠️ Important:</strong> We CANNOT recover your wallet if you lose both your password AND
+                    recovery phrase. This is by design for maximum security.
+                </div>
+            </div>
+
+            <!-- Features Status Section -->
+            <div class="section">
+                <h2>📊 Features Status</h2>
+
+                <h3>Available Now</h3>
+                <ul>
+                    <li>✅ Create & Import Wallets (BIP39 standard)</li>
+                    <li>✅ Send & Receive OCT</li>
+                    <li>✅ OCS01 Token Support</li>
+                    <li>✅ Multi-Wallet Management</li>
+                    <li>✅ Transaction History</li>
+                    <li>✅ QR Code Generation</li>
+                    <li>✅ Manual Balance Refresh</li>
+                    <li>✅ Privacy Features (FHE Encrypted Balance)</li>
+                </ul>
+
+                <h3>Swap Feature - Not Available Yet</h3>
+                <div class="danger-box">
+                    <p><strong>⚠️ SWAP FEATURE IS NOT AVAILABLE YET</strong></p>
+                    <p>The swap functionality (OCT ↔ Other Tokens) is currently <strong>under development by Octra
+                            Network team</strong>.</p>
+                    <p><strong>Expected Launch:</strong> Q1 2026 (tentative)</p>
+                    <p><strong>Official Documentation:</strong> <a href="https://docs.octra.org/"
+                            target="_blank">https://docs.octra.org/</a></p>
+                    <p><strong style="color: var(--danger);">⚠️ WARNING:</strong> Do NOT use third-party "Octra Swap"
+                        services. They may be scams. Only use official Octra Network swap once released.</p>
+                </div>
+
+                <h3>Coming Soon</h3>
+                <ul>
+                    <li>🔜 NFT Marketplace Integration</li>
+                    <li>🔜 WalletConnect Support</li>
+                    <li>🔜 DApp Browser</li>
+                    <li>🔜 Hardware Wallet Support</li>
+                    <li>🔜 Mobile Apps (iOS & Android)</li>
+                </ul>
+            </div>
+
+            <!-- Support Section -->
+            <div class="section">
+                <h2>💬 Support & Resources</h2>
+
+                <h3>Official Links</h3>
+                <ul>
+                    <li>🌐 <strong>Octra Network Documentation:</strong> <a href="https://docs.octra.org/"
+                            target="_blank">https://docs.octra.org/</a></li>
+                    <li>📧 <strong>GitHub:</strong> <a href="https://github.com/irhamuba/octra-wallet"
+                            target="_blank">https://github.com/irhamuba/octra-wallet</a></li>
+                    <li>🐛 <strong>Report Issues:</strong> <a href="https://github.com/irhamuba/octra-wallet/issues"
+                            target="_blank">GitHub Issues</a></li>
+                </ul>
+
+                <h3>Community (Coming Soon)</h3>
+                <ul>
+                    <li>💬 Discord: (Link coming soon)</li>
+                    <li>📱 Telegram: (Link coming soon)</li>
+                    <li>🐦 Twitter: (Link coming soon)</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <strong>⚠️ Security Warning:</strong> We will NEVER ask for your private keys, recovery phrase, or
+                    password. Beware of phishing attempts!
+                </div>
+            </div>
+        </div>
+
+        <!-- INDONESIAN VERSION -->
+        <div id="content-id" class="lang-content" style="display: none;">
+            <header>
+                <div class="logo">🔐 Octra Wallet</div>
+                <div class="tagline">Ekstensi Browser Aman untuk Blockchain Octra</div>
+            </header>
+
+            <div class="audit-notice">
+                <h3>⚠️ Pemberitahuan Audit Keamanan</h3>
+                <p><strong>Status Saat Ini: Dalam Proses Audit Keamanan</strong></p>
+                <p>Wallet ini saat ini sedang menjalani audit keamanan profesional. Source code <strong>belum sepenuhnya
+                        open source</strong> hingga audit selesai dan semua masalah yang teridentifikasi sudah
+                    diperbaiki.</p>
+                <p><strong>Rencana Rilis Open Source:</strong> Q1 2026 (setelah audit selesai)</p>
+                <p>Kami memprioritaskan keamanan daripada kecepatan. Transparansi penuh akan tersedia setelah kami
+                    memastikan standar keamanan tertinggi.</p>
+            </div>
+
+            <!-- Features Section -->
+            <div class="section">
+                <h2>✨ Fitur Unggulan</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🚀</div>
+                        <div class="feature-title">100% Client-Side</div>
+                        <div class="feature-desc">Tanpa server, tanpa API, tanpa perantara. Koneksi langsung ke
+                            blockchain.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <div class="feature-title">Keamanan Tingkat Bank</div>
+                        <div class="feature-desc">Enkripsi AES-256-GCM, tanda tangan Ed25519, manajemen memori aman.
+                        </div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <div class="feature-title">Presisi Penuh</div>
+                        <div class="feature-desc">Dukungan 6 desimal untuk jumlah transaksi yang akurat.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👛</div>
+                        <div class="feature-title">Multi-Wallet</div>
+                        <div class="feature-desc">Buat wallet tak terbatas, ganti antar akun dengan mudah.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔐</div>
+                        <div class="feature-title">Fitur Privasi</div>
+                        <div class="feature-desc">Saldo terenkripsi FHE, transaksi privat (eksperimental).</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📖</div>
+                        <div class="feature-title">Open Source (Segera)</div>
+                        <div class="feature-desc">Transparansi penuh setelah audit keamanan selesai.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Privacy Policy Section -->
+            <div class="section">
+                <h2>🔒 Privasi & Penggunaan Data</h2>
+
+                <h3>Data Yang Kami Simpan</h3>
+                <p><strong>SEMUA data disimpan LOKAL di perangkat Anda saja.</strong> Tidak ada yang dikirim ke server
+                    kami (kami tidak punya server!).</p>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Jenis Data</th>
+                                <th>Lokasi Penyimpanan</th>
+                                <th>Terenkripsi</th>
+                                <th>Dibagikan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Private Keys</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-success">✓ AES-256</span></td>
+                                <td><span class="badge badge-danger">✗ Tidak Pernah</span></td>
+                            </tr>
+                            <tr>
+                                <td>Password</td>
+                                <td>Lokal (di-hash)</td>
+                                <td><span class="badge badge-success">✓ SHA-256</span></td>
+                                <td><span class="badge badge-danger">✗ Tidak Pernah</span></td>
+                            </tr>
+                            <tr>
+                                <td>Wallet</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-success">✓ AES-256</span></td>
+                                <td><span class="badge badge-danger">✗ Tidak Pernah</span></td>
+                            </tr>
+                            <tr>
+                                <td>Transaksi</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-warning">Tidak</span></td>
+                                <td><span class="badge badge-danger">✗ Tidak Pernah</span></td>
+                            </tr>
+                            <tr>
+                                <td>Pengaturan</td>
+                                <td>Browser Local Storage</td>
+                                <td><span class="badge badge-warning">Tidak</span></td>
+                                <td><span class="badge badge-danger">✗ Tidak Pernah</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Apa Yang TIDAK Kami Kumpulkan</h3>
+                <ul>
+                    <li>❌ Alamat email</li>
+                    <li>❌ Nomor telepon</li>
+                    <li>❌ Alamat IP</li>
+                    <li>❌ Sidik jari browser</li>
+                    <li>❌ Event analytics (Tidak ada Google Analytics, Mixpanel, dll.)</li>
+                    <li>❌ Laporan crash</li>
+                    <li>❌ Statistik penggunaan</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <strong>Request Jaringan:</strong> Ekstensi HANYA melakukan request ke
+                    <code>https://octra.network</code> (Octra Blockchain RPC Node). Tidak ada layanan pihak ketiga,
+                    tidak ada analytics, tidak ada sama sekali.
+                </div>
+            </div>
+
+            <!-- Security Section -->
+            <div class="section">
+                <h2>🛡️ Arsitektur Keamanan</h2>
+
+                <h3>Standar Kriptografi</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Komponen</th>
+                                <th>Algoritma</th>
+                                <th>Level Keamanan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Enkripsi Wallet</td>
+                                <td>AES-256-GCM</td>
+                                <td><span class="badge badge-success">Tingkat Militer</span></td>
+                            </tr>
+                            <tr>
+                                <td>Tanda Tangan Digital</td>
+                                <td>Ed25519</td>
+                                <td><span class="badge badge-success">128-bit</span></td>
+                            </tr>
+                            <tr>
+                                <td>Hashing Password</td>
+                                <td>SHA-256</td>
+                                <td><span class="badge badge-success">256-bit</span></td>
+                            </tr>
+                            <tr>
+                                <td>Derivasi Key</td>
+                                <td>PBKDF2 (100k iterasi)</td>
+                                <td><span class="badge badge-success">Kuat</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Fitur Keamanan</h3>
+                <ul>
+                    <li>✅ Penghapusan memori aman setelah digunakan</li>
+                    <li>✅ Auto-lock setelah 5 menit tidak aktif</li>
+                    <li>✅ Keys tidak pernah di-log atau diekspos</li>
+                    <li>✅ Koneksi RPC langsung (tanpa proxy)</li>
+                    <li>✅ Perlindungan Content Security Policy (CSP)</li>
+                </ul>
+
+                <div class="warning-box">
+                    <strong>⚠️ Penting:</strong> Kami TIDAK BISA memulihkan wallet Anda jika Anda kehilangan password
+                    DAN recovery phrase. Ini adalah desain untuk keamanan maksimum.
+                </div>
+            </div>
+
+            <!-- Features Status Section -->
+            <div class="section">
+                <h2>📊 Status Fitur</h2>
+
+                <h3>Tersedia Sekarang</h3>
+                <ul>
+                    <li>✅ Buat & Import Wallet (standar BIP39)</li>
+                    <li>✅ Kirim & Terima OCT</li>
+                    <li>✅ Dukungan Token OCS01</li>
+                    <li>✅ Manajemen Multi-Wallet</li>
+                    <li>✅ Riwayat Transaksi</li>
+                    <li>✅ Pembuatan QR Code</li>
+                    <li>✅ Refresh Saldo Manual</li>
+                    <li>✅ Fitur Privasi (Saldo Terenkripsi FHE)</li>
+                </ul>
+
+                <h3>Fitur Swap - Belum Tersedia</h3>
+                <div class="danger-box">
+                    <p><strong>⚠️ FITUR SWAP BELUM TERSEDIA</strong></p>
+                    <p>Fungsi swap (OCT ↔ Token Lain) saat ini <strong>sedang dalam pengembangan oleh tim Octra
+                            Network</strong>.</p>
+                    <p><strong>Perkiraan Peluncuran:</strong> Q1 2026 (tentatif)</p>
+                    <p><strong>Dokumentasi Resmi:</strong> <a href="https://docs.octra.org/"
+                            target="_blank">https://docs.octra.org/</a></p>
+                    <p><strong style="color: var(--danger);">⚠️ PERINGATAN:</strong> Jangan gunakan layanan "Octra Swap"
+                        pihak ketiga. Mereka kemungkinan penipuan. Hanya gunakan swap resmi Octra Network setelah
+                        dirilis.</p>
+                </div>
+
+                <h3>Segera Hadir</h3>
+                <ul>
+                    <li>🔜 Integrasi NFT Marketplace</li>
+                    <li>🔜 Dukungan WalletConnect</li>
+                    <li>🔜 DApp Browser</li>
+                    <li>🔜 Dukungan Hardware Wallet</li>
+                    <li>🔜 Aplikasi Mobile (iOS & Android)</li>
+                </ul>
+            </div>
+
+            <!-- Support Section -->
+            <div class="section">
+                <h2>💬 Dukungan & Sumber Daya</h2>
+
+                <h3>Link Resmi</h3>
+                <ul>
+                    <li>🌐 <strong>Dokumentasi Octra Network:</strong> <a href="https://docs.octra.org/"
+                            target="_blank">https://docs.octra.org/</a></li>
+                    <li>📧 <strong>GitHub:</strong> <a href="https://github.com/irhamuba/octra-wallet"
+                            target="_blank">https://github.com/irhamuba/octra-wallet</a></li>
+                    <li>🐛 <strong>Laporkan Masalah:</strong> <a href="https://github.com/irhamuba/octra-wallet/issues"
+                            target="_blank">GitHub Issues</a></li>
+                </ul>
+
+                <h3>Komunitas (Segera Hadir)</h3>
+                <ul>
+                    <li>💬 Discord: (Link segera hadir)</li>
+                    <li>📱 Telegram: (Link segera hadir)</li>
+                    <li>🐦 Twitter: (Link segera hadir)</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <strong>⚠️ Peringatan Keamanan:</strong> Kami TIDAK AKAN PERNAH meminta private keys, recovery
+                    phrase, atau password Anda. Waspada terhadap upaya phishing!
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Octra Wallet. All rights reserved.</p>
+            <p>Made with ❤️ for the Octra Community</p>
+        </footer>
+    </div>
+
+    <script>
+        function switchLang(lang) {
+            const langButtons = document.querySelectorAll('.lang-btn');
+            const contentEn = document.getElementById('content-en');
+            const contentId = document.getElementById('content-id');
+
+            langButtons.forEach(btn => btn.classList.remove('active'));
+
+            if (lang === 'en') {
+                contentEn.style.display = 'block';
+                contentId.style.display = 'none';
+                document.querySelector('[onclick="switchLang(\'en\')"]').classList.add('active');
+            } else {
+                contentEn.style.display = 'none';
+                contentId.style.display = 'block';
+                document.querySelector('[onclick="switchLang(\'id\')"]').classList.add('active');
+            }
+        }
+    </script>
+</body>
+
+</html>
