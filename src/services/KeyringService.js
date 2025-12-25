@@ -14,15 +14,14 @@
 
 import nacl from 'tweetnacl';
 import { Buffer } from 'buffer';
+import { logActivity } from '../utils/activityLogger';
+import { logInfo, logWarn, logError, logSecurity } from '../utils/logger';
 
 // Private state - NOT exported, completely isolated
 let _vault = null;           // Encrypted vault data
 let _password = null;        // Session password (cleared on lock)
 let _decryptedKeys = null;   // Decrypted keys (cleared after use)
 let _isUnlocked = false;
-let _lockTimer = null;       // Auto-lock timer
-
-const AUTO_LOCK_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 /**
  * SECURITY: Triple-pass secure memory wipe
@@ -36,14 +35,12 @@ function secureWipeAggressive(data) {
             // Pass 1: Fill with zeros
             data.fill(0);
 
-            // Pass 2: Fill with random data
+            // Pass 2: Fill with cryptographically secure random data
             try {
                 crypto.getRandomValues(data);
             } catch (e) {
-                // Fallback if crypto not available
-                for (let i = 0; i < data.length; i++) {
-                    data[i] = Math.floor(Math.random() * 256);
-                }
+                // SECURITY: Never use Math.random() for security-critical operations
+                throw new Error('Secure random number generation not available. Please use a modern browser.');
             }
 
             // Pass 3: Fill with zeros again
@@ -78,7 +75,7 @@ function secureWipeAggressive(data) {
             }
         }
     } catch (error) {
-        console.error('[KeyringService] Wipe error (non-fatal):', error);
+        logError('[KeyringService] Wipe error (non-fatal):', error);
     }
 
     return null;
@@ -108,22 +105,6 @@ function uint8ArrayToBase64(bytes) {
 }
 
 /**
- * Reset auto-lock timer
- */
-function resetAutoLockTimer(service) {
-    if (_lockTimer) {
-        clearTimeout(_lockTimer);
-    }
-
-    if (_isUnlocked) {
-        _lockTimer = setTimeout(() => {
-            console.log('[KeyringService] Auto-lock triggered');
-            service.lock();
-        }, AUTO_LOCK_TIMEOUT);
-    }
-}
-
-/**
  * KeyringService - Singleton Service for Key Management
  */
 class KeyringService {
@@ -134,12 +115,8 @@ class KeyringService {
         }
         KeyringService._instance = this;
 
-        // Setup activity listeners for auto-lock reset
-        if (typeof document !== 'undefined') {
-            ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach(event => {
-                document.addEventListener(event, () => resetAutoLockTimer(this), { passive: true });
-            });
-        }
+        // Note: Auto-lock removed per security review
+        // Wallet only locks on manual action or browser close
     }
 
     /**
@@ -156,7 +133,6 @@ class KeyringService {
         _password = password;
         _isUnlocked = true;
         _decryptedKeys = new Map();
-        resetAutoLockTimer(this);
     }
 
     /**
@@ -177,8 +153,6 @@ class KeyringService {
                 });
             }
         }
-
-        resetAutoLockTimer(this);
     }
 
     /**
@@ -186,13 +160,7 @@ class KeyringService {
      * Performs aggressive memory sanitization
      */
     lock() {
-        console.log('[KeyringService] Initiating secure lock sequence');
-
-        // Clear auto-lock timer
-        if (_lockTimer) {
-            clearTimeout(_lockTimer);
-            _lockTimer = null;
-        }
+        logSecurity('KEYRING_LOCK', { action: 'Initiating secure lock sequence' });
 
         // Securely wipe password
         if (_password) {
@@ -208,7 +176,7 @@ class KeyringService {
                         const keyBuffer = base64ToUint8Array(keyData.privateKeyB64);
                         secureWipeAggressive(keyBuffer);
                     } catch (e) {
-                        console.warn('[KeyringService] Key wipe warning:', e);
+                        logWarn('[KeyringService] Key wipe warning:', e);
                     }
                 }
 
@@ -217,7 +185,7 @@ class KeyringService {
                         const pubBuffer = base64ToUint8Array(keyData.publicKeyB64);
                         secureWipeAggressive(pubBuffer);
                     } catch (e) {
-                        console.warn('[KeyringService] Public key wipe warning:', e);
+                        logWarn('[KeyringService] Public key wipe warning:', e);
                     }
                 }
 
@@ -231,7 +199,7 @@ class KeyringService {
         _isUnlocked = false;
         _vault = null;
 
-        console.log('[KeyringService] Lock complete - memory sanitized');
+        logSecurity('KEYRING_LOCKED', { status: 'Memory sanitized' });
     }
 
     /**
@@ -250,14 +218,13 @@ class KeyringService {
             privateKeyB64,
             publicKeyB64
         });
-
-        resetAutoLockTimer(this);
     }
 
     /**
      * Sign a transaction - THE CORE SECURE FUNCTION
      * 
      * SECURITY: Uses disposable buffers with immediate wiping
+     * REPLAY PROTECTION: Always fetches latest nonce from network
      */
     async signTransaction(address, txParams) {
         if (!_isUnlocked) {
@@ -286,6 +253,12 @@ class KeyringService {
             // Wipe the keypair's public key (we don't need it)
             secureWipeAggressive(keyPair.publicKey);
 
+            // SECURITY: Validate nonce to prevent replay attacks
+            const providedNonce = parseInt(txParams.nonce);
+            if (isNaN(providedNonce) || providedNonce < 0) {
+                throw new Error('Invalid nonce provided');
+            }
+
             // Create the transaction object
             const μ = 1_000_000;
             const amountRaw = Math.floor(txParams.amount * μ);
@@ -295,7 +268,7 @@ class KeyringService {
                 from: address,
                 to_: txParams.to,
                 amount: String(amountRaw),
-                nonce: parseInt(txParams.nonce),
+                nonce: providedNonce, // Use validated nonce
                 ou: txParams.fee ? String(Math.floor(txParams.fee * μ)) : '2000',
                 timestamp: timestamp
             };
@@ -327,7 +300,13 @@ class KeyringService {
                 public_key: keyData.publicKeyB64
             };
 
-            resetAutoLockTimer(this);
+            // Audit Log: Transaction signed
+            logActivity('TRANSACTION_SIGNED', 'INFO', {
+                address,
+                to: txParams.to,
+                amount: txParams.amount,
+                nonce: providedNonce
+            }).catch(() => { });
 
             return signedTx;
 
@@ -373,8 +352,6 @@ class KeyringService {
             signature = nacl.sign.detached(messageBytes, tempSecretKey);
 
             const result = uint8ArrayToBase64(signature);
-
-            resetAutoLockTimer(this);
 
             return result;
 
@@ -429,8 +406,6 @@ class KeyringService {
                 publicKey: keyData.publicKeyB64
             };
 
-            resetAutoLockTimer(this);
-
             return result;
 
         } finally {
@@ -447,20 +422,18 @@ class KeyringService {
      */
     getPrivateKey(address, reason = 'unknown') {
         if (!_isUnlocked) {
-            console.warn(`[KeyringService] Private key access denied - wallet locked (reason: ${reason})`);
+            logWarn(`[KeyringService] Private key access denied - wallet locked`, { reason });
             return null;
         }
 
         const keyData = _decryptedKeys?.get(address);
         if (!keyData) {
-            console.warn(`[KeyringService] Private key not found for ${address} (reason: ${reason})`);
+            logWarn(`[KeyringService] Private key not found`, { address: address.slice(0, 10) + '...', reason });
             return null;
         }
 
         // Log access for audit (but don't log the key itself)
-        console.log(`[KeyringService] Private key accessed for ${address.slice(0, 10)}... (reason: ${reason})`);
-
-        resetAutoLockTimer(this);
+        logSecurity('PRIVATE_KEY_ACCESS', { address: address.slice(0, 10) + '...', reason });
 
         return keyData.privateKeyB64;
     }
@@ -486,6 +459,22 @@ class KeyringService {
     }
 
     /**
+     * Set active wallet for operations
+     */
+    async setActiveWallet(address) {
+        if (!_isUnlocked) {
+            throw new Error('Keyring is locked');
+        }
+
+        if (!_decryptedKeys?.has(address)) {
+            throw new Error('Wallet not found in keyring');
+        }
+
+        // Just verify the wallet exists, no need to store active state
+        return true;
+    }
+
+    /**
      * Remove a key from the keyring
      */
     removeKey(address) {
@@ -500,7 +489,7 @@ class KeyringService {
      * Emergency panic - immediate lock and memory wipe
      */
     panicLock() {
-        console.warn('[KeyringService] PANIC LOCK ACTIVATED');
+        logSecurity('PANIC_LOCK', { status: 'ACTIVATED', timestamp: Date.now() });
         this.lock();
 
         // Force garbage collection if available (V8/Node)

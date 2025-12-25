@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 
 import { ChevronLeftIcon, HistoryIcon } from '../../shared/Icons';
 import { TransactionItem, TransactionDetailModal } from '../Transactions';
@@ -23,9 +23,29 @@ function TransactionSkeleton() {
     );
 }
 
-export function HistoryView({ transactions, address, settings, onBack, isLoading }) {
+export function HistoryView({ transactions, address, settings, onBack, isLoading, onLoadMore, hasMore, isLoadingMore }) {
     const [filter, setFilter] = useState('all'); // 'all' | 'sent' | 'received' | 'pending'
     const [selectedTx, setSelectedTx] = useState(null);
+    const scrollContainerRef = useRef(null);
+
+    // Infinite scroll handler
+    const handleScroll = useCallback(() => {
+        if (!scrollContainerRef.current || isLoading || isLoadingMore || !hasMore) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+        // Trigger when 50px from bottom
+        if (scrollTop + clientHeight >= scrollHeight - 50) {
+            onLoadMore();
+        }
+    }, [isLoading, isLoadingMore, hasMore, onLoadMore]);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (container) {
+            container.addEventListener('scroll', handleScroll);
+            return () => container.removeEventListener('scroll', handleScroll);
+        }
+    }, [handleScroll]);
 
     const filteredTransactions = useMemo(() => {
         return transactions.filter(tx => {
@@ -138,7 +158,7 @@ export function HistoryView({ transactions, address, settings, onBack, isLoading
                     )}
                 </div>
             ) : (
-                <div className="tx-section">
+                <div className="tx-section history-scroll-container" ref={scrollContainerRef}>
                     <div className="tx-list">
                         {filteredTransactions.map((tx, index) => (
                             <TransactionItem
@@ -148,6 +168,16 @@ export function HistoryView({ transactions, address, settings, onBack, isLoading
                             />
                         ))}
                     </div>
+                    {isLoadingMore && (
+                        <div className="tx-load-more">
+                            <TransactionSkeleton />
+                        </div>
+                    )}
+                    {!hasMore && filteredTransactions.length > 5 && (
+                        <div className="tx-end">
+                            <p>End of history</p>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

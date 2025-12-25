@@ -21,11 +21,16 @@ import {
     AlertIcon
 } from '../shared/Icons';
 import { truncateAddress } from '../../utils/crypto';
-import { verifyPassword, changePassword, exportWallet } from '../../utils/storage';
+import {
+    verifyPasswordSecure as verifyPassword,
+    changePasswordSecure as changePassword,
+    exportWalletSecure as exportWallet
+} from '../../utils/storageSecure';
 import { NetworkSwitcher } from './NetworkSwitcher/NetworkSwitcher';
 import { keyringService } from '../../services/KeyringService';
+import { calculatePasswordStrength } from '../../utils/validation';
 
-export function SettingsScreen({ wallet, settings, password, onUpdateSettings, onDisconnect, onLock, onBack }) {
+export function SettingsScreen({ wallet, settings, password, onUpdateSettings, onDisconnect, onLock, onBack, onPasswordChange }) {
     const [view, setView] = useState('main'); // 'main' | 'network' | 'export' | 'recovery-phrase' | 'change-password' | 'sign-message'
     const [showPrivateKey, setShowPrivateKey] = useState(false);
     const [copied, setCopied] = useState('');
@@ -96,6 +101,7 @@ export function SettingsScreen({ wallet, settings, password, onUpdateSettings, o
         return (
             <ChangePasswordSettings
                 onBack={() => setView('main')}
+                onPasswordChange={onPasswordChange}
             />
         );
     }
@@ -575,7 +581,7 @@ function ExportSettings({ wallet, password, onBack }) {
     );
 }
 
-function ChangePasswordSettings({ onBack }) {
+function ChangePasswordSettings({ onBack, onPasswordChange }) {
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -583,6 +589,8 @@ function ChangePasswordSettings({ onBack }) {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    const passwordStrength = calculatePasswordStrength(newPassword);
 
     const handleSubmit = async () => {
         if (!currentPassword.trim()) {
@@ -603,6 +611,9 @@ function ChangePasswordSettings({ onBack }) {
 
         try {
             await changePassword(currentPassword, newPassword);
+            if (onPasswordChange) {
+                await onPasswordChange(newPassword);
+            }
             setSuccess(true);
         } catch (err) {
             setError(err.message || 'Failed to change password');
@@ -679,6 +690,19 @@ function ChangePasswordSettings({ onBack }) {
                         }}
                         placeholder="Enter new password (min 8 chars)"
                     />
+                    {newPassword && (
+                        <div className="password-strength">
+                            <div className="password-strength-bar">
+                                <div
+                                    className={`password-strength-fill strength-${passwordStrength.level}`}
+                                    style={{ width: `${passwordStrength.percent}%` }}
+                                />
+                            </div>
+                            <span className={`password-strength-text strength-${passwordStrength.level}`}>
+                                {passwordStrength.label}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="form-group">

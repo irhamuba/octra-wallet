@@ -18,7 +18,9 @@ const DEFAULT_RPC = RPC_URLS.testnet;
 class RPCClient {
     constructor(rpcUrl = DEFAULT_RPC) {
         this.rpcUrl = rpcUrl;
-        this.timeout = 15000;
+        // Detect if running as extension or website
+        const isExtension = typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
+        this.timeout = isExtension ? 15000 : 5000; // Faster timeout for website/dev mode
     }
 
     setRpcUrl(url) {
@@ -30,15 +32,24 @@ class RPCClient {
         return this.rpcUrl;
     }
 
-    async request(method, path, data = null) {
+    async request(method, path, data = null, headers = {}, retries = 2, timeoutMs = null) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+        // Logic: specific timeout -> default timeout. 
+        // If timeoutMs is strictly 0, we Disable timeout (infinite wait).
+        const effectiveTimeout = timeoutMs !== null ? timeoutMs : this.timeout;
+        let timeoutId;
+
+        if (effectiveTimeout > 0) {
+            timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
+        }
 
         try {
             const options = {
                 method,
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    ...headers
                 },
                 signal: controller.signal
             };
@@ -48,7 +59,7 @@ class RPCClient {
             }
 
             const response = await fetch(`${this.rpcUrl}${path}`, options);
-            clearTimeout(timeoutId);
+            if (timeoutId) clearTimeout(timeoutId);
 
             const text = await response.text();
             let json = null;
@@ -60,6 +71,20 @@ class RPCClient {
                 json = null;
             }
 
+            // Retry on 503, 502, 504 (server errors)
+            if (!response.ok && [502, 503, 504].includes(response.status) && retries > 0) {
+                // EXPONENTIAL BACKOFF + JITTER: 
+                // If 503, server is overloaded. Wait LONGER.
+                // Random delay between 2000ms and 3000ms to avoid thundering herd
+                const baseDelay = 2000;
+                const jitter = Math.floor(Math.random() * 1000);
+                const delay = baseDelay + jitter;
+
+                console.warn(`[RPC] Server error ${response.status}, retrying in ${delay}ms... (${retries} retries left)`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return this.request(method, path, data, retries - 1);
+            }
+
             return {
                 status: response.status,
                 text,
@@ -68,10 +93,23 @@ class RPCClient {
                 error: !response.ok ? (json?.error || `HTTP ${response.status}`) : undefined
             };
         } catch (error) {
-            clearTimeout(timeoutId);
+            if (timeoutId) clearTimeout(timeoutId);
 
             if (error.name === 'AbortError') {
-                return { status: 0, text: 'timeout', json: null, ok: false, error: 'Request timeout' };
+                return { status: 0, text: 'timeout', json: null, ok: false, error: 'Request timeout (Check if RPC is UP or CORS blocked)' };
+            }
+
+            // Detect CORS error (fetch error with no status)
+            if (error.message === 'Failed to fetch') {
+                return { status: 0, text: 'cors', json: null, ok: false, error: 'CORS Blocked: Access denied by browser (Test as Extension)' };
+            }
+
+            // Retry on network errors
+            if (retries > 0) {
+                const delay = (3 - retries) * 1000;
+                console.warn(`[RPC] Network error, retrying in ${delay}ms... (${retries} retries left)`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return this.request(method, path, data, retries - 1);
             }
 
             console.error(`[RPC] Connection error to ${path}:`, error);
@@ -79,12 +117,12 @@ class RPCClient {
         }
     }
 
-    async get(path) {
-        return this.request('GET', path);
+    async get(path, headers = {}) {
+        return this.request('GET', path, null, headers);
     }
 
-    async post(path, data) {
-        return this.request('POST', path, data);
+    async post(path, data, headers = {}, timeoutMs = null) {
+        return this.request('POST', path, data, headers, 2, timeoutMs);
     }
 
     /**
@@ -155,7 +193,8 @@ class RPCClient {
      * Send a transaction
      */
     async sendTransaction(tx) {
-        const result = await this.post('/send-tx', tx);
+        // No timeout (0) - Wait indefinitely for server response as per user request
+        const result = await this.post('/send-tx', tx, {}, 0);
 
         if (result.status === 200) {
             if (result.json && result.json.status === 'accepted') {

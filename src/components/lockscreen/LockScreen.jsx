@@ -6,7 +6,8 @@
 import { useState, useEffect } from 'react';
 import { UbaLogo, EyeIcon, EyeOffIcon, LockIcon, KeyIcon, ImportIcon, ChevronLeftIcon } from '../shared/Icons';
 import { securityService } from '../../services/SecurityService';
-import { getPasswordStrength } from '../../utils/validation';
+import { calculatePasswordStrength } from '../../utils/validation';
+import { ConfirmModal } from '../shared/ConfirmModal';
 import './LockScreen.css';
 
 export function LockScreen({ onUnlock, onRecover }) {
@@ -25,6 +26,13 @@ export function LockScreen({ onUnlock, onRecover }) {
     const [confirmNewPassword, setConfirmNewPassword] = useState('');
     const [recoveryError, setRecoveryError] = useState('');
     const [isRecovering, setIsRecovering] = useState(false);
+
+    // Confirmation modal state
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // Show/hide password for recovery
+    const [showRecoveryPassword, setShowRecoveryPassword] = useState(false);
+    const [showRecoveryInput, setShowRecoveryInput] = useState(false);
 
 
     // Clear shake after animation
@@ -127,13 +135,30 @@ export function LockScreen({ onUnlock, onRecover }) {
     };
 
     const handleCreateNewWallet = () => {
-        // Show confirmation
-        if (window.confirm('⚠️ WARNING: This will DELETE your current wallet permanently!\n\nAll funds will be lost if you haven\'t backed up your recovery phrase.\n\nAre you sure you want to continue?')) {
-            if (window.confirm('This action CANNOT be undone. Are you absolutely sure?')) {
-                // Clear all wallet data and redirect to welcome
-                localStorage.clear();
-                window.location.reload();
+        // Show custom modal
+        setShowConfirmModal(true);
+    };
+
+    const confirmReset = async () => {
+        setShowConfirmModal(false);
+        try {
+            // Clear localStorage
+            localStorage.clear();
+
+            // Clear chrome.storage if available
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                await chrome.storage.local.clear();
+                console.log('[LockScreen] ✅ Chrome storage cleared');
             }
+
+            console.log('[LockScreen] ✅ All data cleared, reloading...');
+
+            // Force reload
+            window.location.reload();
+        } catch (error) {
+            console.error('[LockScreen] ❌ Failed to clear data:', error);
+            // Reload anyway
+            window.location.reload();
         }
     };
 
@@ -195,6 +220,18 @@ export function LockScreen({ onUnlock, onRecover }) {
                     </button>
                 </div>
                 <p className="lock-network-badge">Support Octra Network</p>
+
+                {/* Confirmation Modal */}
+                <ConfirmModal
+                    isOpen={showConfirmModal}
+                    onConfirm={confirmReset}
+                    onCancel={() => setShowConfirmModal(false)}
+                    title="Reset Wallet?"
+                    message={"This will clear your current wallet data.\n\n⚠️ Make sure you have saved your recovery phrase!\n\nThis action cannot be undone."}
+                    confirmText="Reset Wallet"
+                    cancelText="Cancel"
+                    isDanger={true}
+                />
             </div>
         );
     }
@@ -216,45 +253,95 @@ export function LockScreen({ onUnlock, onRecover }) {
 
                     <form onSubmit={handleRecovery} className="lock-form">
                         <div className="form-group">
-                            <textarea
-                                className="input recovery-textarea"
-                                value={recoveryInput}
-                                onChange={(e) => {
-                                    setRecoveryInput(e.target.value);
-                                    setRecoveryError('');
-                                }}
-                                placeholder={recoveryMethod === 'phrase' ? 'word1 word2 word3 ...' : 'Paste your private key'}
-                                rows={3}
-                                disabled={isRecovering}
-                            />
+                            <label className="form-label">
+                                {recoveryMethod === 'phrase' ? 'Recovery Phrase' : 'Private Key'}
+                            </label>
+                            <div className="input-with-icon">
+                                <textarea
+                                    className="input recovery-textarea"
+                                    value={recoveryInput}
+                                    onChange={(e) => {
+                                        setRecoveryInput(e.target.value);
+                                        setRecoveryError('');
+                                    }}
+                                    placeholder={recoveryMethod === 'phrase' ? 'word1 word2 word3 ...' : 'Paste your private key (Base64)'}
+                                    rows={3}
+                                    disabled={isRecovering}
+                                    style={{ fontFamily: showRecoveryInput ? 'monospace' : 'inherit', filter: showRecoveryInput ? 'none' : 'blur(4px)' }}
+                                />
+                                <button
+                                    type="button"
+                                    className="input-icon-btn"
+                                    onClick={() => setShowRecoveryInput(!showRecoveryInput)}
+                                    tabIndex={-1}
+                                    style={{ top: '12px' }}
+                                >
+                                    {showRecoveryInput ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         <div className="form-group">
-                            <input
-                                type="password"
-                                className="input"
-                                value={newPassword}
-                                onChange={(e) => {
-                                    setNewPassword(e.target.value);
-                                    setRecoveryError('');
-                                }}
-                                placeholder="New password (min 8 chars)"
-                                disabled={isRecovering}
-                            />
+                            <label className="form-label">New Password</label>
+                            <div className="input-with-icon">
+                                <input
+                                    type={showRecoveryPassword ? 'text' : 'password'}
+                                    className="input"
+                                    value={newPassword}
+                                    onChange={(e) => {
+                                        setNewPassword(e.target.value);
+                                        setRecoveryError('');
+                                    }}
+                                    placeholder="Enter new password (min 8 chars)"
+                                    disabled={isRecovering}
+                                />
+                                <button
+                                    type="button"
+                                    className="input-icon-btn"
+                                    onClick={() => setShowRecoveryPassword(!showRecoveryPassword)}
+                                    tabIndex={-1}
+                                >
+                                    {showRecoveryPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                </button>
+                            </div>
+                            {newPassword && (
+                                <div className="password-strength">
+                                    <div className="password-strength-bar">
+                                        <div
+                                            className={`password-strength-fill strength-${calculatePasswordStrength(newPassword).level}`}
+                                            style={{ width: `${calculatePasswordStrength(newPassword).percent}%` }}
+                                        />
+                                    </div>
+                                    <span className={`password-strength-text strength-${calculatePasswordStrength(newPassword).level}`}>
+                                        {calculatePasswordStrength(newPassword).label}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="form-group">
-                            <input
-                                type="password"
-                                className="input"
-                                value={confirmNewPassword}
-                                onChange={(e) => {
-                                    setConfirmNewPassword(e.target.value);
-                                    setRecoveryError('');
-                                }}
-                                placeholder="Confirm new password"
-                                disabled={isRecovering}
-                            />
+                            <label className="form-label">Confirm Password</label>
+                            <div className="input-with-icon">
+                                <input
+                                    type={showRecoveryPassword ? 'text' : 'password'}
+                                    className="input"
+                                    value={confirmNewPassword}
+                                    onChange={(e) => {
+                                        setConfirmNewPassword(e.target.value);
+                                        setRecoveryError('');
+                                    }}
+                                    placeholder="Confirm new password"
+                                    disabled={isRecovering}
+                                />
+                                <button
+                                    type="button"
+                                    className="input-icon-btn"
+                                    onClick={() => setShowRecoveryPassword(!showRecoveryPassword)}
+                                    tabIndex={-1}
+                                >
+                                    {showRecoveryPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
+                                </button>
+                            </div>
                         </div>
 
                         {recoveryError && <p className="form-error">{recoveryError}</p>}
@@ -312,7 +399,21 @@ export function LockScreen({ onUnlock, onRecover }) {
                                 {showPassword ? <EyeOffIcon size={18} /> : <EyeIcon size={18} />}
                             </button>
                         </div>
-                        {error && <p className="form-error">{error}</p>}
+                        {error && (
+                            <div className="form-error-container">
+                                <p className="form-error">{error}</p>
+                                {error.toLowerCase().includes('corrupted') && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        style={{ marginTop: 8, color: 'var(--error)', fontSize: 11 }}
+                                        onClick={handleCreateNewWallet}
+                                    >
+                                        Clear All Data & Reset
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <button
@@ -346,7 +447,7 @@ export function SetupPassword({ onComplete, isNewWallet = true }) {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const passwordStrength = getPasswordStrength(password);
+    const passwordStrength = calculatePasswordStrength(password);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

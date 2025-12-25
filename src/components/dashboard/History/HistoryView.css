@@ -201,3 +201,35 @@
         opacity: 0.8;
     }
 }
+
+.history-scroll-container {
+    height: 380px;
+    /* Fixed height to enable scroll */
+    overflow-y: auto;
+    padding-bottom: var(--space-3xl);
+    /* Space for last items */
+    scrollbar-width: none;
+    /* Hide scrollbar Firefox */
+}
+
+.history-scroll-container::-webkit-scrollbar {
+    display: none;
+    /* Hide scrollbar Chrome/Safari */
+}
+
+.tx-load-more {
+    padding: var(--space-md) 0;
+    opacity: 0.7;
+}
+
+.tx-end {
+    padding: var(--space-2xl) 0;
+    text-align: center;
+}
+
+.tx-end p {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}

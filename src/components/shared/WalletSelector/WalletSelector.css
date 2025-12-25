@@ -50,7 +50,14 @@
 }
 
 .wallet-card.active {
-    background: var(--bg-elevated);
+    background: var(--bg-hover);
+    border-left: 2px solid var(--accent-primary);
+    padding-left: 14px;
+    /* Adjust for border */
+}
+
+.wallet-card.active .wallet-name {
+    color: var(--accent-primary);
 }
 
 /* Avatar */
@@ -96,8 +103,10 @@
 /* Active State override */
 .wallet-card.active .wallet-avatar {
     background: transparent;
-    color: var(--accent-primary);
-    border-color: var(--accent-primary);
+    color: var(--text-secondary);
+    /* Keep icon original grey */
+    border-color: var(--border-subtle);
+    /* Keep border original grey */
     box-shadow: none;
 }
 

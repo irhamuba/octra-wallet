@@ -18,30 +18,46 @@ import { SettingsScreen } from './components/settings';
 import { LockScreen, SetupPassword } from './components/lockscreen';
 
 import {
-  hasPassword,
-  hasWallets,
-  verifyPassword,
-  setWalletPassword,
-  loadWallets,
-  addWallet,
+  hasPasswordSecure as hasPassword,
+  hasWalletsSecure as hasWallets,
+  verifyPasswordSecure as verifyPassword,
+  setWalletPasswordSecure as setWalletPassword,
+  loadWalletsSecure as loadWallets,
+  saveWalletsSecure as saveWallets, // Added
+  addWalletSecure as addWallet,
   getActiveWalletIndex,
   setActiveWalletIndex,
-  getSettings,
-  saveSettings,
-  clearAllData,
-  getTxHistory,
-  updateWalletName,
-  getPrivacyTransaction,
-  getAllPrivacyTransactions
-} from './utils/storage';
+  loadSettingsSecure as getSettings,
+  saveSettingsSecure as saveSettings,
+  clearAllDataSecure as clearAllData,
+  getTxHistorySecure as getTxHistory,
+  saveTxHistorySecure as saveTxHistory, // Added
+  updateWalletNameSecure as updateWalletName,
+  getPrivacyTransactionSecure as getPrivacyTransaction,
+  getAllPrivacyTransactionsSecure as getAllPrivacyTransactions
+} from './utils/storageSecure';
+// Import VerifyPasswordSecure explicitly for session restore context consistency
+import { verifyPasswordSecure } from './utils/storageSecure';
 import { getRpcClient, setRpcUrl } from './utils/rpc';
+import { encryptSession, decryptSession, generateSessionKey } from './utils/crypto';
+
+// Activity logging
+import { logWalletUnlock, logWalletLock } from './utils/activityLogger';
+
 import { keyringService } from './services/KeyringService';
 import { ocs01Manager } from './services/OCS01TokenService';
-import { cacheGet, cacheSet, cacheHas } from './utils/cache';
+import { privacyService } from './services/PrivacyService';
 import { balanceCache } from './utils/balanceCache';
+
 import { CheckIcon, CloseIcon, InfoIcon } from './components/shared/Icons';
 
 import { Toast } from './components/shared/Toast';
+
+// Global Cache Helper
+const cacheSet = (key, data, ttl) => {
+  const expiry = Date.now() + ttl;
+  localStorage.setItem(`cache_app_${key}`, JSON.stringify({ data, expiry }));
+};
 
 function App() {
   // App State
@@ -52,11 +68,19 @@ function App() {
   const [password, setPassword] = useState(null); // Stored in memory only, never persisted
   const [wallets, setWallets] = useState([]);
   const [activeWalletIndex, setActiveWalletIdx] = useState(0);
+  const [lastRefreshId, setLastRefreshId] = useState(0);
   const [pendingWallet, setPendingWallet] = useState(null); // Wallet pending password setup
+
+  // Session management
+  const [sessionExpiry, setSessionExpiry] = useState(null);
+  const SESSION_DURATION = 5 * 60 * 1000; // 5 minutes
 
   const [balance, setBalance] = useState(0);
   const [nonce, setNonce] = useState(0);
   const [transactions, setTransactions] = useState([]);
+  const [txLimit, setTxLimit] = useState(10);
+  const [hasMoreTxs, setHasMoreTxs] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [settings, setSettingsState] = useState(getSettings());
   const [toast, setToast] = useState(null);
@@ -75,6 +99,88 @@ function App() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  // --- Session Persistence Helpers ---
+
+  const clearActiveSession = useCallback(() => {
+    localStorage.removeItem('octra_session_data');
+    localStorage.removeItem('octra_session_expiry');
+  }, []);
+
+  const saveActiveSession = useCallback(async (pwd) => {
+    console.log('[DEBUG] saveActiveSession called. Pwd len:', pwd ? pwd.length : 0);
+    try {
+      const expiry = Date.now() + SESSION_DURATION;
+
+      let sessionKey = localStorage.getItem('octra_session_key');
+      console.log('[DEBUG] Session Key Check:', sessionKey ? 'EXISTS' : 'MISSING');
+
+      if (!sessionKey) {
+        sessionKey = generateSessionKey();
+        localStorage.setItem('octra_session_key', sessionKey);
+        console.log('[DEBUG] generated new session key');
+      }
+
+      if (!pwd) {
+        console.error('[DEBUG] Password is empty! Cannot save session.');
+        return;
+      }
+
+      console.log('[DEBUG] Encrypting session...');
+      const encryptedPwd = await encryptSession(pwd, sessionKey);
+
+      if (encryptedPwd) {
+        localStorage.setItem('octra_session_data', encryptedPwd);
+        localStorage.setItem('octra_session_expiry', expiry.toString());
+        setSessionExpiry(expiry);
+        console.log('[App] Session saved SUCCESS (expires in 5m)');
+      } else {
+        console.error('[App] Session encryption returned null');
+      }
+    } catch (e) {
+      console.error('[App] Failed to save session (EXCEPTION):', e);
+    }
+  }, [SESSION_DURATION]);
+
+  const restoreActiveSession = useCallback(async () => {
+    try {
+      const expiryStr = localStorage.getItem('octra_session_expiry');
+      if (!expiryStr) return null;
+
+      const expiry = parseInt(expiryStr, 10);
+      if (Date.now() > expiry) {
+        console.log('[App] Session expired');
+        clearActiveSession();
+        return null;
+      }
+
+      const sessionKey = localStorage.getItem('octra_session_key');
+      const encryptedPwd = localStorage.getItem('octra_session_data');
+
+      if (sessionKey && encryptedPwd) {
+        const pwd = await decryptSession(encryptedPwd, sessionKey);
+
+        if (pwd) {
+          // Check integrity
+          const isValid = await verifyPasswordSecure(pwd);
+
+          if (isValid) {
+            const newExpiry = Date.now() + SESSION_DURATION;
+            localStorage.setItem('octra_session_expiry', newExpiry.toString());
+            setSessionExpiry(newExpiry);
+            console.log('[App] Session restored from persistence');
+            return pwd;
+          } else {
+            console.warn('[App] Stored session password invalid');
+            clearActiveSession();
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[App] Session restore failed:', e);
+    }
+    return null;
+  }, [SESSION_DURATION, clearActiveSession]);
+
   // Initialize app - check if locked or needs setup
   useEffect(() => {
     const init = async () => {
@@ -85,12 +191,33 @@ function App() {
         }
         setSettingsState(savedSettings);
 
-        // Check if user has set up wallet before
-        const hasExistingPassword = hasPassword();
-        const hasExistingWallets = hasWallets();
+        const hasWalletsConfigured = await hasWallets();
+        const hasPasswordConfigured = await hasPassword();
 
-        if (hasExistingPassword && hasExistingWallets) {
-          // User has wallet, show lock screen
+        if (hasWalletsConfigured && hasPasswordConfigured) {
+          // Try to restore session first
+          const restoredPwd = await restoreActiveSession();
+
+          if (restoredPwd) {
+            // Restore successful!
+            const loadedWallets = await loadWallets(restoredPwd);
+            if (loadedWallets.length > 0) {
+              setWallets(loadedWallets);
+              setPassword(restoredPwd);
+              setIsUnlocked(true);
+
+              await keyringService.unlock(restoredPwd, loadedWallets);
+              const savedIndex = getActiveWalletIndex();
+              const activeIdx = savedIndex >= 0 && savedIndex < loadedWallets.length ? savedIndex : 0;
+              setActiveWalletIdx(activeIdx);
+              await keyringService.setActiveWallet(loadedWallets[activeIdx].address);
+
+              setView('dashboard');
+              return;
+            }
+          }
+
+          // If restore failed, show lock screen
           setView('lock');
         } else {
           // New user, show welcome
@@ -103,53 +230,30 @@ function App() {
     };
 
     init();
-  }, []);
+  }, [restoreActiveSession]);
 
-  // Auto-lock after inactivity (5 minutes)
+  // Session "Heartbeat" / Keep-Alive
+  // As long as the extension UI is open and unlocked, we EXTEND the session.
+  // The 5-minute timer should only effectively countdown when the popup is CLOSED.
   useEffect(() => {
     if (!isUnlocked) return;
 
-    let timeout;
-    const resetTimer = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        handleLock();
-      }, (settings.autoLockMinutes || 5) * 60 * 1000);
-    };
+    const keepAliveInterval = setInterval(() => {
+      // Extend session by 5 minutes from NOW
+      const newExpiry = Date.now() + SESSION_DURATION;
+      localStorage.setItem('octra_session_expiry', newExpiry.toString());
+      setSessionExpiry(newExpiry);
+    }, 5000); // Pulse every 5 seconds
 
-    // Events that reset the timer
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
-    events.forEach(event => window.addEventListener(event, resetTimer));
-    resetTimer();
+    return () => clearInterval(keepAliveInterval);
+  }, [isUnlocked, SESSION_DURATION]);
 
-    return () => {
-      clearTimeout(timeout);
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-    };
-  }, [isUnlocked, settings.autoLockMinutes]);
-
-  // Fetch all tokens with cache (30s TTL)
+  // Shared function to fetch all tokens for the active wallet
   const fetchAllTokens = useCallback(async () => {
-    if (!wallet?.address) return [];
-
-    const cacheKey = `tokens_${wallet.address}`;
-
-    // Return cached if available
-    if (cacheHas(cacheKey)) {
-      const cached = cacheGet(cacheKey);
-      setAllTokens(cached);
-      return cached;
-    }
+    if (!wallet?.address || isLoadingTokens) return;
 
     setIsLoadingTokens(true);
     try {
-      const nativeToken = {
-        symbol: 'OCT',
-        name: 'Octra',
-        balance: balance,
-        isNative: true
-      };
-
       // Fetch OCS01 tokens
       const ocs01Balances = await ocs01Manager.getUserTokenBalances(wallet.address);
       const otherTokens = ocs01Balances.map(t => ({
@@ -160,10 +264,11 @@ function App() {
         isNative: false,
         isOCS01: true
       }));
-
+      const nativeToken = { symbol: 'OCT', name: 'Octra', balance: balance, isNative: true };
       const tokens = [nativeToken, ...otherTokens];
 
       // Cache for 30 seconds
+      const cacheKey = `tokens_${wallet.address}`;
       cacheSet(cacheKey, tokens, 30000);
       setAllTokens(tokens);
 
@@ -176,11 +281,14 @@ function App() {
     } finally {
       setIsLoadingTokens(false);
     }
-  }, [wallet, balance]);
+  }, [wallet, balance, rpcClient]);
 
   // Optimized balance refresh with 3-layer cache & request deduplication
   const refreshBalance = useCallback(async () => {
     if (!wallet?.address) return;
+
+    const currentRequestId = Date.now();
+    setLastRefreshId(currentRequestId);
 
     setIsRefreshing(true);
     try {
@@ -190,9 +298,15 @@ function App() {
         async (addr) => await rpcClient.getBalance(addr)
       );
 
-      // Batch state updates (single re-render!)
-      setBalance(data.balance);
-      setNonce(data.nonce);
+      // Race condition guard: only update if this is the latest request
+      setLastRefreshId(prevId => {
+        if (currentRequestId >= prevId) {
+          // Batch state updates (single re-render!)
+          setBalance(data.balance);
+          setNonce(data.nonce);
+        }
+        return prevId;
+      });
 
       // Update wallet list
       if (activeWalletIndex !== -1) {
@@ -259,44 +373,97 @@ function App() {
       const hasChanges = updatedWallets.some((w, i) => w.lastKnownBalance !== wallets[i].lastKnownBalance);
       if (hasChanges) {
         setWallets(updatedWallets);
-        // Persist to storage
-        const { saveWallets: saveWalletsToStorage } = await import('./utils/storage.js');
-        await saveWalletsToStorage(updatedWallets, password);
+        // Persist to storage - SECURE STANDARDS
+        await saveWallets(updatedWallets, password);
       }
     } catch (error) {
       console.error('Background balance refresh failed:', error);
     }
   }, [wallets, isUnlocked, rpcClient, password]);
 
-  // Refresh transactions (OPTIMIZED: Batch decryption + Pending from staging)
-  const refreshTransactions = useCallback(async () => {
+  // Refresh transactions (OPTIMIZED: Merges new with old)
+  const refreshTransactions = useCallback(async (customLimit = null) => {
     if (!wallet?.address) return;
 
+    const limitToUse = customLimit || txLimit;
+
     try {
-      // OPTIMIZATION: Decrypt privacy logs ONCE before loop
+      // 1. Load from persistent storage first
+      const storedHistory = getTxHistory(settings.network || 'testnet', wallet.address);
+
+      // If we already have enough in storage for the current limit, and not doing a fresh refresh,
+      // we can theoretically skip fetching older ones. But we always want to fetch at least 10 NEWEST.
+
+      // OPTIMIZATION: Decrypt privacy logs ONCE
       const allPrivacyLogs = await getAllPrivacyTransactions(password);
 
-      // Fetch confirmed transactions
-      const info = await rpcClient.getAddressInfo(wallet.address, 20);
+      // 2. Fetch from network
+      // 2. Fetch from network - OPTIMIZED SYNC STRATEGY
+      // "Peek" strategy: Check if the latest transaction on-chain is already in our DB.
+      // If yes, we are synced. Don't fetch the rest. Saves RPC calls.
 
-      let confirmedTxs = [];
+      let info;
+      let shouldFetchFullBatch = true;
+      let limitToUse = customLimit || txLimit;
 
-      // Process confirmed transactions
-      if (info.recent_transactions && info.recent_transactions.length > 0) {
-        confirmedTxs = await Promise.all(
-          info.recent_transactions.slice(0, 10).map(async (ref) => {
+      // Only perform peek check if:
+      // 1. We are not loading "more" (infinite scroll)
+      // 2. We have some stored history
+      if (!customLimit && storedHistory.length > 0) {
+        try {
+          // Fetch just the HEAD (1 item) to compare
+          const headInfo = await rpcClient.getAddressInfo(wallet.address, 1);
+          const latestRemoteHash = headInfo.recent_transactions?.[0]?.hash;
+          const latestLocalHash = storedHistory[0]?.hash;
+
+          if (latestRemoteHash && latestRemoteHash === latestLocalHash) {
+            // SYNCED! No need to fetch details.
+            console.log('[App] History is up-to-date (Optimistic Match)');
+            shouldFetchFullBatch = false;
+
+            // Reset hasMore state based on chain expectation
+            const totalOnChain = headInfo.transaction_count || 0;
+            setHasMoreTxs(storedHistory.length < totalOnChain);
+
+            // Use local data as base, but assume success since we are synced
+            info = headInfo; // Keeps basic structure
+            info.recent_transactions = []; // Nothing new to process
+          }
+        } catch (e) {
+          console.warn('Peek check failed, falling back to full fetch', e);
+        }
+      }
+
+      if (shouldFetchFullBatch) {
+        // If mismatch or empty DB, fetch the requested batch
+        info = await rpcClient.getAddressInfo(wallet.address, limitToUse);
+
+        const totalOnChain = info.transaction_count || 0;
+        const fetchedCount = info.recent_transactions?.length || 0;
+        const hitLimitWall = fetchedCount < limitToUse;
+        const hasMoreSmart = totalOnChain > 0
+          ? (limitToUse < totalOnChain)
+          : !hitLimitWall;
+
+        setHasMoreTxs(hasMoreSmart);
+      }
+
+      let newConfirmedTxs = [];
+      if (shouldFetchFullBatch && info.recent_transactions && info.recent_transactions.length > 0) {
+        // Throttling: Fetch transaction details in chunks of 3 to avoid RPC 429/503
+        const TX_CONCURRENCY = 3;
+        const processTxBatch = async (batch) => {
+          return Promise.all(batch.map(async (ref) => {
+            // ... Detail fetching logic (kept same, just wrapped) ...
+            // We need to verify if this tx is arguably already in DB even if head didn't match?
+            // But for now, just fetch details for everything returned by RPC to be safe
             try {
               const txData = await rpcClient.getTransaction(ref.hash);
               const parsed = txData.parsed_tx;
               const isIncoming = parsed.to.toLowerCase() === wallet.address.toLowerCase();
-
               const privacyLog = allPrivacyLogs[ref.hash] || null;
               let txType = isIncoming ? 'in' : 'out';
-
-              if (privacyLog) {
-                txType = privacyLog.type;
-              }
-
+              if (privacyLog) txType = privacyLog.type;
               return {
                 hash: ref.hash,
                 type: txType,
@@ -308,62 +475,78 @@ function App() {
                 ou: parsed.ou || txData.ou
               };
             } catch {
-              return null;
+              return null; // Return null on failure instead of placeholder to cleaner list
             }
-          })
-        );
-        confirmedTxs = confirmedTxs.filter(Boolean);
+          }));
+        };
+
+        for (let i = 0; i < info.recent_transactions.length; i += TX_CONCURRENCY) {
+          const batch = info.recent_transactions.slice(i, i + TX_CONCURRENCY);
+          if (i > 0) await new Promise(r => setTimeout(r, 600)); // Strict 600ms throttle
+          const batchResults = await processTxBatch(batch);
+          newConfirmedTxs.push(...batchResults);
+        }
+        newConfirmedTxs = newConfirmedTxs.filter(Boolean);
       }
 
-      // Try to fetch pending transactions from staging (optional - don't fail if unavailable)
+      // 3. Persistent Save & Update State
+      saveTxHistory(newConfirmedTxs, settings.network || 'testnet', wallet.address);
+
+      // Get the full merged history from storage
+      const fullHistory = getTxHistory(settings.network || 'testnet', wallet.address);
+
+      // 4. Add Pending Transactions (volatile, don't save to persistent history yet)
       let pendingTxs = [];
       try {
         const stagingResult = await rpcClient.get('/staging');
         if (stagingResult.json && stagingResult.json.staged_transactions) {
           const userAddrLower = wallet.address.toLowerCase();
-          const confirmedHashes = new Set(confirmedTxs.map(tx => tx.hash));
+          const confirmedHashes = new Set(fullHistory.map(tx => tx.hash));
 
-          // Filter for OUR pending transactions only (not yet confirmed)
           const ourPending = stagingResult.json.staged_transactions.filter(tx => {
             const fromAddr = (tx.from || '').toLowerCase();
             const toAddr = (tx.to || tx.to_ || '').toLowerCase();
-            const txHash = tx.hash || '';
-
-            // Must be our tx AND not already confirmed
-            return (fromAddr === userAddrLower || toAddr === userAddrLower) &&
-              !confirmedHashes.has(txHash);
+            return (fromAddr === userAddrLower || toAddr === userAddrLower) && !confirmedHashes.has(tx.hash);
           });
 
-          pendingTxs = ourPending.map(tx => {
-            const toAddr = (tx.to || tx.to_ || '').toLowerCase();
-            const isIncoming = toAddr === wallet.address.toLowerCase();
-            return {
-              hash: tx.hash || `pending_${tx.nonce}_${Date.now()}`,
-              type: isIncoming ? 'in' : 'out',
-              amount: parseFloat(tx.amount || 0) / (tx.amount && tx.amount.includes('.') ? 1 : 1_000_000),
-              address: isIncoming ? tx.from : (tx.to || tx.to_),
-              timestamp: (tx.timestamp || Date.now() / 1000) * 1000,
-              status: 'pending',
-              ou: tx.ou
-            };
-          });
+          pendingTxs = ourPending.map(tx => ({
+            hash: tx.hash || `pending_${tx.nonce}`,
+            type: (tx.to || tx.to_ || '').toLowerCase() === userAddrLower ? 'in' : 'out',
+            amount: parseFloat(tx.amount || 0) / (tx.amount && tx.amount.includes('.') ? 1 : 1_000_000),
+            address: (tx.to || tx.to_ || '').toLowerCase() === userAddrLower ? tx.from : (tx.to || tx.to_),
+            timestamp: Date.now(),
+            status: 'pending',
+            ou: tx.ou
+          }));
         }
-      } catch (stagingError) {
-        // Staging fetch failed - that's OK, just show confirmed
-        console.log('Staging fetch skipped:', stagingError.message);
-      }
+      } catch (err) { /* ignore staging errors */ }
 
+      // Final display merge
+      const displayHistory = [...pendingTxs, ...fullHistory].sort((a, b) => b.timestamp - a.timestamp);
+      setTransactions(displayHistory);
 
-      // Merge: pending first, then confirmed
-      const allTxs = [...pendingTxs, ...confirmedTxs];
-      setTransactions(allTxs);
+      // Also update ephemeral cache for instant load next time
+      cacheSet(`txs_${wallet.address}`, displayHistory, 300000);
 
-      // Cache transactions with 55s TTL (slightly less than 60s refresh)
-      cacheSet(`txs_${wallet.address}`, allTxs, 55000);
     } catch (error) {
       console.error('Failed to fetch transactions:', error);
     }
-  }, [wallet, rpcClient, password]);
+  }, [wallet, rpcClient, password, txLimit, settings.network]);
+
+  // Load More Transactions (Infinite Scroll)
+  const handleLoadMoreTransactions = useCallback(async () => {
+    if (isLoadingMore || !hasMoreTxs) return;
+
+    setIsLoadingMore(true);
+    const newLimit = txLimit + 10;
+    setTxLimit(newLimit);
+
+    try {
+      await refreshTransactions(newLimit);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMoreTxs, txLimit, refreshTransactions]);
 
   // Smart refresh - Simple & Smooth like MetaMask
   useEffect(() => {
@@ -371,105 +554,337 @@ function App() {
       // Clear old data & show loading
       setBalance(0);
       setNonce(0);
-      setTransactions([]);
+      // Instant load history from storage (don't clear)
+      const cachedTxs = getTxHistory(settings.network || 'testnet', wallet.address);
+      setTransactions(cachedTxs);
+      // setTransactions([]); // REMOVED to enabling instant persistent history loading
+      setTxLimit(10);
+      setHasMoreTxs(true);
       setIsRefreshing(true);
 
-      // Load from cache instantly (if available)
-      const cachedBalance = cacheGet(`balance_${wallet.address}`);
-      if (cachedBalance) {
-        setBalance(cachedBalance.balance || 0);
-        setNonce(cachedBalance.nonce || 0);
-      }
+      // 1. Critical Path: Native Balance (Fastest)
+      // We wait for this before triggering heavier loads
+      refreshBalance().then(() => {
+        // 2. Secondary Path: Tokens (Medium Priority)
+        // Staggered by 200ms to allow UI updates
+        setTimeout(() => {
+          fetchAllTokens();
+        }, 200);
 
-      const cachedTxs = cacheGet(`txs_${wallet.address}`);
-      if (cachedTxs && Array.isArray(cachedTxs)) {
-        setTransactions(cachedTxs);
-      }
-
-      // Fetch fresh data (with error handling)
-      Promise.all([
-        refreshBalance().catch(err => console.warn('[Balance] Fetch failed:', err.message)),
-        refreshTransactions().catch(err => console.warn('[TX] Fetch failed:', err.message))
-      ]).finally(() => {
+        // 3. Background Path: Only Privacy Balance (Transactions fetched on demand in History View)
+        setTimeout(() => {
+          Promise.allSettled([
+            // refreshTransactions(), // <-- DISABLED auto-fetch. User wants manual fetch on History view only.
+            privacyService.getEncryptedBalance(wallet.address)
+          ]).finally(() => {
+            setIsRefreshing(false);
+          });
+        }, 1500);
+      }).catch(err => {
+        console.error('Critical balance fetch failed', err);
         setIsRefreshing(false);
       });
 
-      // Auto-refresh intervals
-      const balanceInterval = setInterval(() => {
-        refreshBalance().catch(() => { }); // Silent fail on auto-refresh
-      }, 30000);
+      // SECURITY: Random jitter to prevent network fingerprinting
+      // Instead of predictable 30s intervals, randomize timing
+      const createJitteredInterval = (fn, baseInterval, jitter = 5000) => {
+        let timeoutId;
+        const schedule = () => {
+          const randomDelay = baseInterval + (Math.random() * jitter * 2 - jitter);
+          timeoutId = setTimeout(() => {
+            fn();
+            schedule(); // Reschedule with new random delay
+          }, randomDelay);
+        };
+        schedule();
+        return () => clearTimeout(timeoutId);
+      };
 
-      const txInterval = setInterval(() => {
-        refreshTransactions().catch(() => { }); // Silent fail on auto-refresh
-      }, 60000);
+      // Auto-refresh with jitter (base: 30s, jitter: ±5s)
+      const cancelBalanceRefresh = createJitteredInterval(
+        () => refreshBalance().catch(() => { }),
+        30000,
+        5000
+      );
+
+      // Transaction refresh with jitter (base: 60s, jitter: ±8s)
+      const cancelTxRefresh = createJitteredInterval(
+        () => refreshTransactions().catch(() => { }),
+        60000,
+        8000
+      );
 
       // Background wallet refresh (only if multiple wallets)
       let walletRefreshTimeout;
       if (wallets.length > 1) {
+        const randomDelay = 120000 + (Math.random() * 20000 - 10000); // 110-130s
         walletRefreshTimeout = setTimeout(() => {
           refreshAllBalances().catch(() => { });
-        }, 120000);
+        }, randomDelay);
       }
 
       // Cleanup on unmount or wallet switch
       return () => {
-        clearInterval(balanceInterval);
-        clearInterval(txInterval);
+        cancelBalanceRefresh();
+        cancelTxRefresh();
         if (walletRefreshTimeout) clearTimeout(walletRefreshTimeout);
       };
     }
   }, [wallet?.address, view, isUnlocked]);
 
-  // Load tokens on wallet change or balance update
+  // Sync tokens with balance update
   useEffect(() => {
-    if (wallet?.address && isUnlocked) {
-      // Update allTokens immediately when balance changes
-      if (allTokens.length > 0) {
+    if (wallet?.address && isUnlocked && allTokens.length > 0) {
+      const currentNative = allTokens.find(t => t.isNative);
+      // Only update if there is a mismatch to prevent infinite loops
+      if (currentNative && currentNative.balance !== balance) {
         const updatedTokens = allTokens.map(t =>
           t.isNative ? { ...t, balance: balance } : t
         );
         setAllTokens(updatedTokens);
-      } else {
-        // First load - fetch all tokens
-        fetchAllTokens();
       }
     }
-  }, [wallet?.address, isUnlocked, balance, fetchAllTokens]);
+  }, [wallet?.address, isUnlocked, balance, allTokens]);
 
-  // Lock wallet - SECURITY: Wipes all keys from memory
+  // Lock wallet - SECURITY: Wipes all  //
+  // Lock wallet
+  //
   const handleLock = useCallback(() => {
-    // CRITICAL: Securely wipe all keys from memory via KeyringService
-    keyringService.lock();
+    // SECURITY: Clear all session data
+    clearActiveSession();
 
+    // Clear password from memory
+    setPassword('');
     setIsUnlocked(false);
-    setPassword(null);
-    setWallets([]);
+    setSessionExpiry(null);
+
+    // Clear keyring (wipe sensitive data from memory)
+    keyringService.panicLock();
+
     setView('lock');
+    console.log('[App] 🔒 Wallet locked (Session cleared, memory wiped)');
   }, []);
 
   // Unlock wallet with password
   const handleUnlock = useCallback(async (enteredPassword) => {
-    const isValid = await verifyPassword(enteredPassword);
-    if (!isValid) {
-      throw new Error('Invalid password');
+    try {
+      const isValid = await verifyPassword(enteredPassword);
+      if (!isValid) {
+        throw new Error('Invalid password');
+      }
+
+      const loadedWallets = await loadWallets(enteredPassword);
+
+      if (loadedWallets.length === 0) {
+        throw new Error('No wallets found');
+      }
+
+      // Auto-fix: Re-save wallets if they were recovered from HMAC mismatch
+      // This ensures future unlocks won't trigger emergency recovery
+      try {
+        await saveWallets(loadedWallets, enteredPassword);
+        console.log('[App] Wallets re-encrypted with correct HMAC');
+      } catch (resaveError) {
+        // Non-critical error, just log it
+        console.warn('[App] Could not re-save wallets:', resaveError);
+      }
+
+
+      setWallets(loadedWallets);
+      setPassword(enteredPassword);
+      setIsUnlocked(true);
+
+      // Save session for persistence (5 minutes)
+      await saveActiveSession(enteredPassword);
+      console.log('[App] Session saved with AES-GCM encryption, expires in 5 minutes');
+
+      // Assuming setError is a state setter for an error state
+      // setError(null);
+
+      // Track unlock time for session duration
+      // Assuming setUnlockTime is a state setter for unlock time
+      // setUnlockTime(Date.now());
+
+      // Initialize keyring with loaded wallets
+      await keyringService.unlock(enteredPassword, loadedWallets);
+
+      // Set active wallet (restore from saved index or default to first)
+      const savedIndex = getActiveWalletIndex();
+      if (savedIndex >= 0 && savedIndex < loadedWallets.length) {
+        setActiveWalletIdx(savedIndex); // Changed from setActiveWallet to setActiveWalletIdx
+        // setActiveWalletAddress(loadedWallets[savedIndex].address); // This state variable is not in the original code
+
+        // Switch keyring to active wallet
+        await keyringService.setActiveWallet(loadedWallets[savedIndex].address);
+
+        // Initialize Token & Privacy Services
+        await ocs01Manager.initializeSecure(enteredPassword);
+        const activePk = keyringService.getPrivateKey(loadedWallets[savedIndex].address);
+        const { privacyService } = await import('./services/PrivacyService');
+        privacyService.setPrivateKey(activePk, enteredPassword);
+
+        // Reset to home view
+        setView('dashboard'); // Changed from setCurrentView('home') to setView('dashboard')
+      } else if (loadedWallets.length > 0) {
+        setActiveWalletIdx(0); // Changed from setActiveWallet to setActiveWalletIdx
+        // setActiveWalletAddress(loadedWallets[0].address); // This state variable is not in the original code
+        await keyringService.setActiveWallet(loadedWallets[0].address);
+        setActiveWalletIndex(0);
+
+        // Initialize Token & Privacy Services
+        await ocs01Manager.initializeSecure(enteredPassword);
+        const activePk = keyringService.getPrivateKey(loadedWallets[0].address);
+        const { privacyService } = await import('./services/PrivacyService');
+        privacyService.setPrivateKey(activePk, enteredPassword);
+
+        setView('dashboard'); // Changed from setCurrentView('home') to setView('dashboard')
+      }
+
+      // Load saved settings
+      const savedSettings = getSettings();
+      setSettingsState(savedSettings); // Changed from setSettings to setSettingsState
+
+      // Log wallet unlock
+      // Assuming logWalletUnlock is a defined function
+      // logWalletUnlock(loadedWallets.length).catch(err => {
+      //   console.warn('[App] Failed to log wallet unlock:', err);
+      // });
+
+      // Refresh balances after unlock
+      if (loadedWallets.length > 0) {
+        refreshAllBalances(loadedWallets);
+      }
+      console.log('[App] Login successful - Data restored from cache');
+    } catch (error) {
+      console.error('[App] Failed to unlock:', error);
+      // Assuming setError is a state setter for an error state
+      // setError(error.message || 'Invalid password');
+      throw error; // Re-throw to propagate error for UI handling
     }
+  }, [refreshAllBalances, verifyPassword, loadWallets, keyringService, getActiveWalletIndex, setActiveWalletIdx, setActiveWalletIndex, setView, getSettings, setSettingsState, setWallets, setPassword, setIsUnlocked]);
 
-    // Load wallets with password
-    const loadedWallets = await loadWallets(enteredPassword);
-    if (loadedWallets.length === 0) {
-      throw new Error('No wallets found');
+  // Handle wallet recovery from seed phrase or private key
+  const handleRecover = useCallback(async ({ type, value, newPassword }) => {
+    try {
+      console.log('[App] Starting wallet recovery...', { type });
+
+      // Clear existing data first
+      localStorage.clear();
+      if (typeof chrome !== 'undefined' && chrome.storage) {
+        await chrome.storage.local.clear();
+      }
+      sessionStorage.clear();
+
+      let recoveredWallet;
+
+      if (type === 'mnemonic') {
+        // Recover from seed phrase
+        const { importFromMnemonic } = await import('./utils/crypto');
+        recoveredWallet = await importFromMnemonic(value);
+        console.log('[App] ✅ Wallet recovered from mnemonic');
+      } else {
+        // Recover from private key
+        const { importFromPrivateKey } = await import('./utils/crypto');
+        recoveredWallet = await importFromPrivateKey(value);
+        console.log('[App] ✅ Wallet recovered from private key');
+      }
+
+      // Set new password
+      await setWalletPassword(newPassword);
+
+      // VERIFY DATA INTEGRITY IMMEDIATELY
+      // This ensures the password was correctly written to storage before we proceed
+      const { verifyPasswordSecure } = await import('./utils/storageSecure');
+      const isVerified = await verifyPasswordSecure(newPassword);
+
+      if (!isVerified) {
+        console.error('[App] Password verification failed immediately after set');
+        // Retry once
+        await setWalletPassword(newPassword);
+        const retryVerified = await verifyPasswordSecure(newPassword);
+        if (!retryVerified) {
+          throw new Error('Failed to save password to secure storage. Please try again.');
+        }
+      }
+
+      // Save recovered wallet
+      await addWallet(recoveredWallet, newPassword);
+
+      // Initialize keyring
+      await keyringService.initialize([recoveredWallet], newPassword);
+      keyringService.addKey(
+        recoveredWallet.address,
+        recoveredWallet.privateKeyB64,
+        recoveredWallet.publicKeyB64
+      );
+
+      // Update state
+      setPassword(newPassword);
+      const walletWithMeta = {
+        ...recoveredWallet,
+        id: crypto.randomUUID(),
+        name: 'Recovered Wallet'
+      };
+      setWallets([walletWithMeta]);
+      setIsUnlocked(true);
+
+      // Session Management (Fixed)
+      // We save the session securely so it survives popup close, but expires in 5 mins
+      await saveActiveSession(newPassword);
+
+      // Fetch balance
+      try {
+        const balanceData = await rpcClient.getBalance(recoveredWallet.address);
+        if (balanceData?.balance !== undefined) {
+          setBalance(balanceData.balance);
+          setNonce(balanceData.nonce || 0);
+        }
+      } catch (err) {
+        console.warn('[App] Failed to fetch balance:', err);
+        setBalance(0);
+        setNonce(0);
+      }
+
+      setView('dashboard');
+      console.log('[App] ✅ Wallet recovery complete');
+
+    } catch (error) {
+      console.error('[App] ❌ Recovery failed:', error);
+      throw new Error(error.message || 'Failed to recover wallet. Please check your input.');
     }
+  }, [keyringService, rpcClient, addWallet, setWalletPassword]);
 
-    // SECURITY: Initialize KeyringService with decrypted keys
-    await keyringService.unlock(enteredPassword, loadedWallets);
 
-    setPassword(enteredPassword);
-    setWallets(loadedWallets);
-    setActiveWalletIdx(getActiveWalletIndex());
-    setTransactions(getTxHistory(settings.network || 'testnet'));
-    setIsUnlocked(true);
-    setView('dashboard');
-  }, [settings.network]);
+
+
+  // Handle password change - Update all services in memory
+  const handlePasswordChange = useCallback(async (newPassword) => {
+    try {
+      setPassword(newPassword);
+
+      // Re-initialize keyring with new password
+      if (wallets.length > 0) {
+        await keyringService.initialize(wallets, newPassword);
+        const activeWallet = wallets[activeWalletIndex];
+        if (activeWallet) {
+          await keyringService.setActiveWallet(activeWallet.address);
+
+          // Update ocs01Manager
+          await ocs01Manager.initializeSecure(newPassword);
+
+          // Update privacyService
+          const activePk = keyringService.getPrivateKey(activeWallet.address);
+          // Privacy service update
+          privacyService.setPrivateKey(activePk, newPassword);
+        }
+      }
+      showToast('Password updated successfully', 'success');
+    } catch (error) {
+      console.error('Failed to update services after password change:', error);
+      showToast('Password changed, but session refresh failed. Please re-lock.', 'warning');
+    }
+  }, [wallets, activeWalletIndex, showToast]);
+
 
   // Setup password for new wallet
   const handleSetupPassword = useCallback(async (newPassword) => {
@@ -493,39 +908,114 @@ function App() {
   // Handle wallet creation - wallet and password come together now
   const handleWalletGenerated = useCallback(async (newWallet, newPassword) => {
     try {
-      if (!hasPassword()) {
+      // Force clear any existing wallet data before creating new wallet
+      if (!(await hasPassword())) {
+        // First time - clear everything to ensure clean slate
+        try {
+          if (typeof chrome !== 'undefined' && chrome.storage) {
+            await chrome.storage.local.clear();
+          }
+          localStorage.clear();
+          sessionStorage.clear();
+          console.log('[App] Forced data clear before wallet creation');
+        } catch (clearErr) {
+          console.warn('[App] Could not force clear:', clearErr);
+        }
+
+        // First time - set password
         // First time - set password
         await setWalletPassword(newPassword);
+
+        // SECURITY: Verify password was saved correctly (Double Check)
+        const isVerified = await verifyPasswordSecure(newPassword);
+        if (!isVerified) {
+          console.warn('[App] Password integrity check failed. Retrying storage...');
+          await setWalletPassword(newPassword);
+          const retryVerified = await verifyPasswordSecure(newPassword);
+          if (!retryVerified) throw new Error('Critical Security Error: Cannot save password securely.');
+        }
       }
 
+      // Save persistent session immediately to prevent premature logout
+      await saveActiveSession(newPassword);
+
       const passToUse = newPassword || password;
-      await addWallet(newWallet, passToUse);
+
+      // FIX: Handle race condition (double-fire) where wallet is saved twice
+      try {
+        await addWallet(newWallet, passToUse);
+      } catch (addErr) {
+        // If wallet exists, it's likely a race condition. Proceed anyway.
+        if (addErr.message && addErr.message.includes('Wallet already exists')) {
+          console.warn('[App] Wallet add skipped (duplicate/race-condition), proceeding to login...');
+        } else {
+          throw addErr;
+        }
+      }
 
       // SECURITY: Initialize keyring and add key
       await keyringService.initialize(passToUse);
       keyringService.addKey(newWallet.address, newWallet.privateKeyB64, newWallet.publicKeyB64);
 
       setPassword(passToUse);
-      setWallets([{ ...newWallet, id: crypto.randomUUID(), name: 'Wallet 1' }]);
+      const walletWithMeta = { ...newWallet, id: crypto.randomUUID(), name: 'Wallet 1' };
+      setWallets([walletWithMeta]);
       setIsUnlocked(true);
+
+      // Initialize privacy service for new wallet
+      privacyService.setPrivateKey(newWallet.privateKeyB64, passToUse);
+
+      // ⚡ OPTIMIZATION: Skip RPC calls for new wallet (balance is always 0)
+      console.log('[App] ⚡ New wallet created - skipping balance fetch (will be 0)');
+      setBalance(0);
+      setNonce(0);
+      setTransactions([]);
+      // No RPC calls needed - saves time and bandwidth!
+
       setView('dashboard');
       // Removed success toast
     } catch (err) {
       console.error('Failed to create wallet:', err);
       showToast(err.message || 'Failed to create wallet', 'error');
     }
-  }, [password, showToast]);
+  }, [password, showToast, rpcClient]);
 
   // Handle wallet import - wallet and password come together now
   const handleImportWallet = useCallback(async (importedWallet, newPassword) => {
     try {
-      if (!hasPassword()) {
+      // Force clear any existing wallet data before importing (first time only)
+      if (!(await hasPassword())) {
+        // First time - clear everything to ensure clean slate
+        try {
+          if (typeof chrome !== 'undefined' && chrome.storage) {
+            await chrome.storage.local.clear();
+          }
+          localStorage.clear();
+          sessionStorage.clear();
+          console.log('[App] Forced data clear before wallet import');
+        } catch (clearErr) {
+          console.warn('[App] Could not force clear:', clearErr);
+        }
+
         // First time - set password
         await setWalletPassword(newPassword);
       }
 
       const passToUse = newPassword || password;
-      await addWallet(importedWallet, passToUse);
+
+      // FIX: Handle race condition where wallet is added twice
+      try {
+        await addWallet(importedWallet, passToUse);
+      } catch (addErr) {
+        if (addErr.message && addErr.message.includes('Wallet already exists')) {
+          console.warn('[App] Import ignored (duplicate), proceeding...');
+        } else {
+          throw addErr;
+        }
+      }
+
+      // Save persistent session immediately
+      await saveActiveSession(passToUse);
 
       // SECURITY: Initialize keyring and add key
       if (!keyringService.isUnlocked()) {
@@ -535,15 +1025,24 @@ function App() {
 
       setPassword(passToUse);
       const existingWallets = wallets.length > 0 ? wallets : [];
-      setWallets([...existingWallets, { ...importedWallet, id: crypto.randomUUID(), name: `Wallet ${existingWallets.length + 1}` }]);
+      const newWallet = { ...importedWallet, id: crypto.randomUUID(), name: `Wallet ${existingWallets.length + 1}` };
+      setWallets([...existingWallets, newWallet]);
       setIsUnlocked(true);
+
+      // Initialize privacy service with key and password
+      privacyService.setPrivateKey(importedWallet.privateKeyB64, passToUse);
+
+      // Note: Data fetching (balance, tokens, transactions, privacy) will be 
+      // automatically triggered by the main useEffect when view changes to 'dashboard'.
+      // This ensures fully synchronized loading state.
+
       setView('dashboard');
       // Removed success toast
     } catch (err) {
       console.error('Failed to import wallet:', err);
       showToast(err.message || 'Failed to import wallet', 'error');
     }
-  }, [password, wallets, showToast]);
+  }, [password, wallets, showToast, rpcClient]);
 
   // Handle disconnect/reset
   const handleDisconnect = useCallback(() => {
@@ -684,7 +1183,7 @@ function App() {
 
       {/* Lock Screen */}
       {view === 'lock' && (
-        <LockScreen onUnlock={handleUnlock} />
+        <LockScreen onUnlock={handleUnlock} onRecover={handleRecover} />
       )}
 
       {/* Setup Password (for new users) */}
@@ -698,8 +1197,34 @@ function App() {
       {/* Welcome Screen */}
       {view === 'welcome' && (
         <WelcomeScreen
-          onCreateWallet={() => setView('create')}
-          onImportWallet={() => setView('import')}
+          onCreateWallet={async () => {
+            // Clear any existing corrupted data before creating new wallet
+            try {
+              if (typeof chrome !== 'undefined' && chrome.storage) {
+                await chrome.storage.local.clear();
+              }
+              localStorage.clear();
+              sessionStorage.clear();
+              console.log('[App] Data cleared for fresh wallet creation');
+            } catch (err) {
+              console.warn('[App] Could not clear data:', err);
+            }
+            setView('create');
+          }}
+          onImportWallet={async () => {
+            // Clear any existing corrupted data before importing
+            try {
+              if (typeof chrome !== 'undefined' && chrome.storage) {
+                await chrome.storage.local.clear();
+              }
+              localStorage.clear();
+              sessionStorage.clear();
+              console.log('[App] Data cleared for fresh wallet import');
+            } catch (err) {
+              console.warn('[App] Could not clear data:', err);
+            }
+            setView('import');
+          }}
         />
       )}
 
@@ -720,38 +1245,44 @@ function App() {
       )}
 
       {/* Dashboard */}
-      {view === 'dashboard' && wallet && (
+      {view === 'dashboard' && (
         <Dashboard
           wallet={wallet}
           wallets={wallets}
-          activeWalletIndex={activeWalletIndex}
-          onSwitchWallet={handleSwitchWallet}
-          onAddWallet={handleAddWallet}
-          onRenameWallet={handleRenameWallet}
           balance={balance}
           nonce={nonce}
           transactions={transactions}
+          settings={settings}
+          onLock={handleLock}
+          onUpdateSettings={handleUpdateSettings}
+          onSwitchWallet={handleSwitchWallet}
+          onAddWallet={handleAddWallet}
+          onRenameWallet={handleRenameWallet}
+          onDisconnect={handleDisconnect}
+          isRefreshing={isRefreshing}
+          onRefresh={refreshBalance} // Only refreshes balance normally
+          onFetchHistory={refreshTransactions} // Special prop for History View
           allTokens={allTokens}
           isLoadingTokens={isLoadingTokens}
-          onRefresh={() => { refreshBalance(); refreshTransactions(); fetchAllTokens(); }}
-          isRefreshing={isRefreshing}
-          settings={settings}
-          onUpdateSettings={handleUpdateSettings}
+          onRefreshTokens={fetchAllTokens}
+          onLoadMoreTransactions={handleLoadMoreTransactions}
+          hasMoreTransactions={hasMoreTxs}
+          isLoadingMore={isLoadingMore}
           onOpenSettings={() => setView('settings')}
-          onLock={handleLock}
         />
       )}
 
-      {/* Settings */}
-      {view === 'settings' && wallet && (
+      {/* Settings Screen */}
+      {view === 'settings' && (
         <SettingsScreen
           wallet={wallet}
           settings={settings}
           password={password}
           onUpdateSettings={handleUpdateSettings}
+          onBack={() => setView('dashboard')}
           onDisconnect={handleDisconnect}
           onLock={handleLock}
-          onBack={() => setView('dashboard')}
+          onPasswordChange={handlePasswordChange}
         />
       )}
     </div>

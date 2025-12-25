@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" style="font-family: sans-serif;">
+  <!-- Background -->
+  <rect width="800" height="600" fill="#F7F9FC"/>
+  
+  <!-- Header -->
+  <text x="400" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#333">Octra Wallet - Optimized Data Synchronization Flow</text>
+
+  <!-- Step 1: Trigger -->
+  <g transform="translate(300, 60)">
+    <rect width="200" height="50" rx="10" fill="#FF6B6B" stroke="#c0392b" stroke-width="2"/>
+    <text x="100" y="30" text-anchor="middle" fill="white" font-weight="bold">User Action: Import Wallet</text>
+  </g>
+
+  <!-- Arrow Down -->
+  <path d="M400 110 L400 140" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 2: Orchestrator -->
+  <g transform="translate(250, 140)">
+    <rect width="300" height="60" rx="10" fill="#4ECDC4" stroke="#16a085" stroke-width="2"/>
+    <text x="150" y="25" text-anchor="middle" fill="white" font-weight="bold">App.jsx (Main Controller)</text>
+    <text x="150" y="45" text-anchor="middle" fill="white" font-size="12">Promise.allSettled([ 4 Parallel Tasks ])</text>
+  </g>
+
+  <!-- Arrows Split -->
+  <path d="M400 200 L120 250" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M400 200 L300 250" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M400 200 L500 250" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M400 200 L680 250" stroke="#333" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Step 3: Parallel Tasks -->
+  <!-- Task 1: Native -->
+  <g transform="translate(50, 250)">
+    <rect width="140" height="90" rx="5" fill="#45B7D1" stroke="#2980b9" stroke-width="2"/>
+    <text x="70" y="25" text-anchor="middle" fill="white" font-weight="bold">Native Balance</text>
+    <text x="70" y="45" text-anchor="middle" fill="white" font-size="11">rpcClient.getBalance()</text>
+    <text x="70" y="65" text-anchor="middle" fill="#dff" font-size="10">GET /balance</text>
+    <text x="70" y="80" text-anchor="middle" fill="#dff" font-size="10">"0.00 OCT"</text>
+  </g>
+
+  <!-- Task 2: Tokens -->
+  <g transform="translate(230, 250)">
+    <rect width="140" height="90" rx="5" fill="#45B7D1" stroke="#2980b9" stroke-width="2"/>
+    <text x="70" y="25" text-anchor="middle" fill="white" font-weight="bold">All Tokens</text>
+    <text x="70" y="45" text-anchor="middle" fill="white" font-size="11">fetchAllTokens()</text>
+    <text x="70" y="65" text-anchor="middle" fill="#dff" font-size="10">Iterate Contracts</text>
+    <text x="70" y="80" text-anchor="middle" fill="#dff" font-size="10">[T1, T2, T3]</text>
+  </g>
+
+  <!-- Task 3: History -->
+  <g transform="translate(430, 250)">
+    <rect width="140" height="90" rx="5" fill="#45B7D1" stroke="#2980b9" stroke-width="2"/>
+    <text x="70" y="25" text-anchor="middle" fill="white" font-weight="bold">History (Latest 10)</text>
+    <text x="70" y="45" text-anchor="middle" fill="white" font-size="11">refreshTransactions()</text>
+    <text x="70" y="65" text-anchor="middle" fill="#dff" font-size="10">GET /address_info</text>
+    <text x="70" y="80" text-anchor="middle" fill="#dff" font-size="10">[Tx1, Tx2...]</text>
+  </g>
+
+  <!-- Task 4: Privacy -->
+  <g transform="translate(610, 250)">
+    <rect width="140" height="90" rx="5" fill="#9b59b6" stroke="#8e44ad" stroke-width="2"/>
+    <text x="70" y="25" text-anchor="middle" fill="white" font-weight="bold">Privacy Data</text>
+    <text x="70" y="45" text-anchor="middle" fill="white" font-size="11">getEncryptedBalance()</text>
+    <text x="70" y="65" text-anchor="middle" fill="#f0d0ff" font-size="10">GET /view_encrypted</text>
+    <text x="70" y="80" text-anchor="middle" fill="#f0d0ff" font-size="10">Writes to Cache</text>
+  </g>
+
+  <!-- Arrows Join -->
+  <path d="M120 340 L250 420" stroke="#333" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
+  <path d="M300 340 L350 420" stroke="#333" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
+  <path d="M500 340 L450 420" stroke="#333" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
+  <path d="M680 340 L550 420" stroke="#333" stroke-width="2" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
+
+  <!-- Step 4: Outcome -->
+  <g transform="translate(150, 420)">
+    <rect width="500" height="150" rx="15" fill="#ecf0f1" stroke="#bdc3c7" stroke-width="2"/>
+    <text x="250" y="30" text-anchor="middle" font-weight="bold" fill="#2c3e50">Global Request Synchronization (App State)</text>
+    
+    <!-- State Items -->
+    <g transform="translate(30, 50)">
+        <rect width="100" height="50" fill="#2ecc71" rx="5"/>
+        <text x="50" y="30" text-anchor="middle" fill="white" font-weight="bold">Balance Ready</text>
+    </g>
+    
+    <g transform="translate(140, 50)">
+        <rect width="100" height="50" fill="#e67e22" rx="5"/>
+        <text x="50" y="20" text-anchor="middle" fill="white" font-weight="bold">Tokens Ready</text>
+        <text x="50" y="40" text-anchor="middle" fill="white" font-size="10">Syncs to SendView</text>
+    </g>
+
+    <g transform="translate(250, 50)">
+        <rect width="100" height="50" fill="#3498db" rx="5"/>
+        <text x="50" y="30" text-anchor="middle" fill="white" font-weight="bold">History Ready</text>
+    </g>
+
+    <g transform="translate(360, 50)">
+        <rect width="100" height="50" fill="#9b59b6" rx="5"/>
+        <text x="50" y="20" text-anchor="middle" fill="white" font-weight="bold">Privacy Cached</text>
+        <text x="50" y="40" text-anchor="middle" fill="white" font-size="10">Syncs to PrivacyView</text>
+    </g>
+
+    <text x="250" y="130" text-anchor="middle" font-style="italic" fill="#7f8c8d" font-size="14">Result: User sees Dashboard completely populated immediately.</text>
+  </g>
+
+  <!-- Definitions -->
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+    </marker>
+  </defs>
+</svg>

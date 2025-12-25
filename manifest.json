@@ -1,10 +1,10 @@
 {
     "manifest_version": 3,
-    "name": "Octra Wallet",
+    "name": "UBA Wallet",
     "version": "1.0.0",
-    "description": "Secure Web3 wallet for Octra blockchain with FHE privacy features",
-    "author": "Irham Uba",
-    "homepage_url": "https://github.com/irhamuba/octra-wallet",
+    "description": "Secure non-custodial wallet for Octra Network",
+    "author": "UBA Dev",
+    "homepage_url": "https://docs.octra.org",
     "permissions": [
         "storage",
         "alarms",
@@ -15,18 +15,18 @@
         "https://*.octra.network/*"
     ],
     "background": {
-        "service_worker": "src/background/background.js",
+        "service_worker": "background.js",
         "type": "module"
     },
     "action": {
         "default_popup": "index.html",
-        "default_icon": "octra-icon.svg"
+        "default_title": "UBA Wallet",
+        "default_icon": "icons/icon-48.png"
     },
     "icons": {
-        "16": "octra-icon.svg",
-        "32": "octra-icon.svg",
-        "48": "octra-icon.svg",
-        "128": "octra-icon.svg"
+        "16": "icons/icon-16.png",
+        "48": "icons/icon-48.png",
+        "128": "icons/icon-128.png"
     },
     "content_security_policy": {
         "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"

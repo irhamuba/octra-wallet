@@ -20,7 +20,7 @@ import { truncateAddress, formatAmount } from '../../../utils/crypto';
 
 export function WalletSelector({
     wallets,
-    activeIndex,
+    activeAddress,
     onSelect,
     onAddWallet,
     onEditWallet,
@@ -44,7 +44,7 @@ export function WalletSelector({
             {/* Wallet List */}
             <div className="wallet-list-container">
                 {wallets.map((wallet, index) => {
-                    const isActive = index === activeIndex;
+                    const isActive = wallet.address === activeAddress;
                     return (
                         <div
                             key={wallet.id || index}

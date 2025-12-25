@@ -4,9 +4,7 @@ import { truncateAddress, formatAmount } from '../../../utils/crypto';
 import { CopyIcon, CheckIcon, EyeIcon, EyeOffIcon, ShieldIcon, PlusIcon, ImageIcon } from '../../shared/Icons';
 import { TokenItem } from '../TokenItem';
 import { privacyService } from '../../../services/PrivacyService';
-import { ocs01Manager } from '../../../services/OCS01TokenService';
 import { getTokenPrice, formatUsd, calculateUsdValue } from '../../../services/PriceService';
-import { saveSettings } from '../../../utils/storage';
 import { getRpcClient } from '../../../utils/rpc';
 import { AddCustomTokenModal } from './AddCustomTokenModal';
 import './HomeView.css';
@@ -35,42 +33,42 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
 
     // Fetch encrypted balance
     const fetchEncryptedBalance = useCallback(async () => {
-        if (wallet?.address && wallet?.privateKeyB64) {
+        if (wallet?.address) {
             try {
-                // Try to load from cache first
-                const cached = localStorage.getItem(`privacy_data_${wallet.address}`);
-                if (cached && !encryptedBalance) {
-                    setEncryptedBalance(JSON.parse(cached));
-                }
-
-                privacyService.setPrivateKey(wallet.privateKeyB64);
+                // privacyService already manages its own secure cache
                 const result = await privacyService.getEncryptedBalance(wallet.address);
                 if (result.success) {
                     setEncryptedBalance(result);
-                    localStorage.setItem(`privacy_data_${wallet.address}`, JSON.stringify(result));
                 }
             } catch (error) {
                 console.error('Failed to fetch privacy data:', error);
             }
         }
-    }, [wallet?.address, wallet?.privateKeyB64, encryptedBalance]);
+    }, [wallet?.address]);
 
     useEffect(() => {
         fetchEncryptedBalance();
     }, [balance, fetchEncryptedBalance]); // Only re-fetch if native balance changes or on mount
 
-    // Calculate total balance including shielded - Memoized
-    const totalBalance = useMemo(() => {
-        return balance + (encryptedBalance?.encryptedBalance || 0);
-    }, [balance, encryptedBalance]);
+    // Use only Public Balance for Home View as requested
+    const displayBalance = balance;
 
-    // Calculate USD Value - Memoized
+    // Calculate USD Value based on Public Balance
     const displayUsdValue = useMemo(() => {
-        return formatUsd(calculateUsdValue(totalBalance, octPrice));
-    }, [totalBalance, octPrice]);
+        return formatUsd(calculateUsdValue(displayBalance, octPrice));
+    }, [displayBalance, octPrice]);
 
-    // Use tokens from parent (already includes OCT + OCS01)
-    const tokens = allTokens || [];
+    // Asset list shows Public Balance only for Home View
+    const tokens = useMemo(() => {
+        if (!allTokens) return [];
+        return allTokens.map(token => {
+            if (token.isNative) {
+                // Ensure native token in list also matches public balance
+                return { ...token, balance: displayBalance };
+            }
+            return token;
+        });
+    }, [allTokens, displayBalance]);
 
     return (
         <>
@@ -94,7 +92,7 @@ export function HomeView({ wallet, balance, transactions, onCopyAddress, copied,
 
                         {/* OCT Amount - Secondary */}
                         <div className="balance-token">
-                            {formatAmount(totalBalance)} OCT
+                            {formatAmount(displayBalance)} OCT
                         </div>
                     </div>
                 )}

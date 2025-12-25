@@ -80,29 +80,37 @@
   padding: 0;
 }
 
-html,
-body {
-  height: 100%;
-  width: 100%;
-  overflow-x: hidden;
+/* Extension-specific: Ensure proper sizing */
+html {
+  width: 360px;
+  height: 600px;
+  overflow: hidden;
+  border-radius: 0 !important;
 }
 
 body {
+  width: 360px;
+  height: 600px;
+  margin: 0;
+  padding: 0;
   font-family: var(--font-family);
   background: var(--bg-primary);
   color: var(--text-primary);
-  line-height: 1.4;
-  /* Tighter line height */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  position: relative;
+  border-radius: 0 !important;
 }
 
 #root {
+  width: 100%;
   height: 100%;
+  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding-top: 10px;
+  background: var(--bg-primary);
 }
 
 /* Typography Utilities - Compact Scale */
@@ -419,12 +427,9 @@ textarea.input {
   min-height: 600px;
   max-height: 600px;
   background: var(--bg-secondary);
-  border-radius: var(--radius-xl);
-  border: 1px solid var(--border-subtle);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-lg);
 }
 
 .flex {

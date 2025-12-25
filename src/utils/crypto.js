@@ -313,13 +313,36 @@ export async function importFromMnemonic(mnemonicPhrase) {
 }
 
 /**
- * Import wallet from private key (base64)
+ * Import wallet from private key (hex or base64)
  */
-export async function importFromPrivateKey(privateKeyB64) {
-    const privateKey = base64ToBuffer(privateKeyB64);
+export async function importFromPrivateKey(input) {
+    if (!input) throw new Error('Private key is required');
+
+    let privateKey;
+    let privateKeyB64;
+
+    let cleanInput = input.trim();
+    if (cleanInput.startsWith('0x')) {
+        cleanInput = cleanInput.substring(2);
+    }
+
+    // Detect format
+    if (/^[a-fA-F0-9]{64}$/.test(cleanInput)) {
+        // Hex format
+        privateKey = hexToBuffer(cleanInput);
+        privateKeyB64 = bufferToBase64(privateKey);
+    } else {
+        // Assume Base64
+        try {
+            privateKey = base64ToBuffer(cleanInput);
+            privateKeyB64 = cleanInput;
+        } catch (e) {
+            throw new Error('Invalid private key format. Use 64-character hex or base64.');
+        }
+    }
 
     if (privateKey.length !== 32) {
-        throw new Error('Invalid private key length');
+        throw new Error('Invalid private key length. Must be 32 bytes (64 hex characters).');
     }
 
     // Create Ed25519 keypair
@@ -370,8 +393,9 @@ export function verifySignature(message, signature, publicKeyB64) {
 
 /**
  * Create and sign a transaction
+ * Now supports dynamic 'ou' via RPC fee estimation
  */
-export function createTransaction(from, to, amount, nonce, privateKeyB64, message = null) {
+export async function createTransaction(from, to, amount, nonce, privateKeyB64, message = null, fee = null) {
     // FIX: Use string manipulation to avoid floating point errors
     // e.g. 0.29 * 1000000 = 289999.99... (WRONG)
     // We want 0.29 -> 290000 (CORRECT)
@@ -406,12 +430,32 @@ export function createTransaction(from, to, amount, nonce, privateKeyB64, messag
     // But usually we send at least 1 micro unit.
     const finalAmount = amountRaw.replace(/^0+/, '') || '0';
 
+    // Operation Unit (ou) calculation - micro-units based
+    // Connects to RPC if fee is not provided
+    const microUnits = 1_000_000;
+    let ouValue;
+
+    if (fee !== null) {
+        ouValue = String(Math.floor(parseFloat(fee) * microUnits));
+    } else {
+        try {
+            // Lazy load RPC client to avoid circular dependencies if any
+            const { getRpcClient } = await import('./rpc');
+            const rpc = getRpcClient();
+            const estimates = await rpc.getFeeEstimate(parseFloat(amount));
+            ouValue = String(Math.floor(estimates.medium * microUnits));
+        } catch (e) {
+            // Fallback: 1000 (0.001 OCT) for small tx, 2000 (0.002 OCT) for others
+            ouValue = parseFloat(amount) < 0.001 ? '1000' : '2000';
+        }
+    }
+
     const tx = {
         from,
         to_: to,
         amount: finalAmount, // String representation of integer micro-units
         nonce: parseInt(nonce),
-        ou: parseFloat(amount) < 0.001 ? '1' : '3', // Keep rough logic for 'ou' or update later
+        ou: ouValue,
         timestamp: Date.now() / 1000
     };
 
@@ -492,4 +536,82 @@ export function formatAmount(amount, decimals = 3) {
     }
 
     return `${integerPart}.${fractionalPart}`;
+}
+/**
+ * Generate a random session key (exported as hex string)
+ */
+export function generateSessionKey() {
+    const key = nacl.randomBytes(32);
+    return Buffer.from(key).toString('hex');
+}
+
+/**
+ * Encrypt string with session key (AES-GCM via Crypto API)
+ */
+export async function encryptSession(text, keyHex) {
+    if (!text || !keyHex) return null;
+    try {
+        const keyBuffer = Buffer.from(keyHex, 'hex');
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encodedText = new TextEncoder().encode(text);
+
+        const key = await crypto.subtle.importKey(
+            'raw',
+            keyBuffer,
+            'AES-GCM',
+            false,
+            ['encrypt']
+        );
+
+        const encrypted = await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            encodedText
+        );
+
+        // Return as IV:Ciphertext (hex)
+        const ivHex = Buffer.from(iv).toString('hex');
+        const cipherHex = Buffer.from(encrypted).toString('hex');
+        return `${ivHex}:${cipherHex}`;
+    } catch (err) {
+        console.error('[Crypto] Session encryption failed:', err);
+        if (typeof crypto === 'undefined') console.error('CRITICAL: Trace 1 - crypto undefined');
+        else if (!crypto.subtle) console.error('CRITICAL: Trace 2 - crypto.subtle undefined');
+
+        return null;
+    }
+}
+
+/**
+ * Decrypt string with session key
+ */
+export async function decryptSession(encryptedText, keyHex) {
+    if (!encryptedText || !keyHex) return null;
+    try {
+        const [ivHex, cipherHex] = encryptedText.split(':');
+        if (!ivHex || !cipherHex) return null;
+
+        const keyBuffer = Buffer.from(keyHex, 'hex');
+        const iv = new Uint8Array(Buffer.from(ivHex, 'hex'));
+        const cipher = Buffer.from(cipherHex, 'hex');
+
+        const key = await crypto.subtle.importKey(
+            'raw',
+            keyBuffer,
+            'AES-GCM',
+            false,
+            ['decrypt']
+        );
+
+        const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv },
+            key,
+            cipher
+        );
+
+        return new TextDecoder().decode(decrypted);
+    } catch (err) {
+        console.error('Session decryption failed:', err);
+        return null;
+    }
 }

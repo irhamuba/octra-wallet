@@ -33,7 +33,7 @@ import { TokenDetailView } from './TokenDetail';
 // Feature components
 import { NFTGallery } from './NFT';
 
-export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, onAddWallet, onRenameWallet, balance, nonce, transactions, allTokens, isLoadingTokens, onRefresh, isRefreshing, settings, onUpdateSettings, onOpenSettings, onLock }) {
+export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, onAddWallet, onRenameWallet, balance, nonce, transactions, allTokens, isLoadingTokens, onRefresh, isRefreshing, settings, onUpdateSettings, onOpenSettings, onLock, onLoadMoreTransactions, hasMoreTransactions, isLoadingMore, onFetchHistory }) {
     const [view, setView] = useState('home'); // 'home' | 'send' | 'receive' | 'history' | 'nft' | 'tokens' | 'addressbook'
     const [copied, setCopied] = useState(false);
     const [headerCopied, setHeaderCopied] = useState(false);
@@ -86,6 +86,14 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
 
     const rpcClient = getRpcClient(settings?.rpcUrl);
 
+    // Trigger History Fetch when entering history view
+    useEffect(() => {
+        if (view === 'history' && onFetchHistory) {
+            console.log('[Dashboard] Entered History View -> Fetching transactions...');
+            onFetchHistory();
+        }
+    }, [view, onFetchHistory]);
+
     const handleCopyAddress = async () => {
         try {
             await navigator.clipboard.writeText(wallet.address);
@@ -97,12 +105,8 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
     };
 
     const handleBack = () => {
-        if (selectedToken) {
-            setSelectedToken(null);
-            setView('tokens');
-        } else {
-            setView('home');
-        }
+        setSelectedToken(null);
+        setView('home');
     };
 
     const handleTokenClick = (token) => {
@@ -162,7 +166,7 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                                     ...w,
                                     balance: i === activeWalletIndex ? balance : (w.lastKnownBalance || 0)
                                 }))}
-                                activeIndex={activeWalletIndex}
+                                activeAddress={wallet?.address}
                                 onSelect={handleSelectWallet}
                                 onAddWallet={handleOpenAddWallet}
                                 onEditWallet={(idx) => handleOpenRename(idx, wallets[idx].name, { stopPropagation: () => { } })}
@@ -302,6 +306,9 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                         settings={settings}
                         onBack={handleBack}
                         isLoading={isRefreshing && transactions.length === 0}
+                        onLoadMore={onLoadMoreTransactions}
+                        hasMore={hasMoreTransactions}
+                        isLoadingMore={isLoadingMore}
                     />
                 )}
 
@@ -310,6 +317,7 @@ export function Dashboard({ wallet, wallets, activeWalletIndex, onSwitchWallet, 
                         wallet={wallet}
                         onBack={handleBack}
                         showToast={showToast}
+                        publicBalance={balance}
                     />
                 )}
 

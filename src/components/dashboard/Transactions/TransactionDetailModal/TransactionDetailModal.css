@@ -104,6 +104,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
+    /* Added gap to prevent "mepet" */
 }
 
 .tx-detail-label {

@@ -66,7 +66,14 @@ export function TransactionItem({ tx, onClick }) {
                 <div className={`tx-item-amount ${iconClass}`}>
                     {isIncoming ? '+' : '-'}{formatAmount(tx.amount)}
                 </div>
-                {/* Minimalist: Removed relative time since we show full date */}
+                <span className="tx-item-time">
+                    {new Date(tx.timestamp).toLocaleString(undefined, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        day: 'numeric',
+                        month: 'short'
+                    })}
+                </span>
             </div>
         </div>
     );

@@ -1,13 +1,43 @@
 /**
  * Price Service - Fetches token prices from CoinGecko API
+ * 
+ * v2.0 Features:
+ * - Persistent cache (survives refresh)
+ * - Automatic cache expiration
+ * - Fallback to cached data on API failure
  */
 
 const COINGECKO_API_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_COINGECKO_API_URL) || 'https://api.coingecko.com/api/v3';
 const COINGECKO_API_KEY = typeof import.meta !== 'undefined' ? import.meta.env.VITE_COINGECKO_API_KEY : undefined;
 
-// Cache for price data (5 min TTL)
-const priceCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Cache TTL: 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_STORAGE_KEY = '_price_cache';
+
+// Load cache from localStorage on init
+let priceCache = new Map();
+try {
+    const stored = localStorage.getItem(CACHE_STORAGE_KEY);
+    if (stored) {
+        const parsed = JSON.parse(stored);
+        // Restore Map from stored array
+        priceCache = new Map(parsed);
+    }
+} catch (error) {
+    console.warn('[PriceService] Failed to load cache:', error);
+    priceCache = new Map();
+}
+
+// Save cache to localStorage
+function saveCache() {
+    try {
+        // Convert Map to array for JSON serialization
+        const cacheArray = Array.from(priceCache.entries());
+        localStorage.setItem(CACHE_STORAGE_KEY, JSON.stringify(cacheArray));
+    } catch (error) {
+        console.warn('[PriceService] Failed to save cache:', error);
+    }
+}
 
 // Token ID mapping for CoinGecko
 // Add mappings for tokens when they get listed on CoinGecko
@@ -33,50 +63,53 @@ export async function getTokenPrice(symbol) {
     }
 
     // Check cache
-    const cacheKey = `price_${coinId}`;
-    const cached = priceCache.get(cacheKey);
+    const cached = priceCache.get(symbol);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         return cached.data;
     }
 
     try {
-        const headers = {};
-        if (COINGECKO_API_KEY) {
-            headers['x-cg-demo-api-key'] = COINGECKO_API_KEY;
-        }
-
         const response = await fetch(
             `${COINGECKO_API_URL}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`,
-            { headers }
+            {
+                headers: COINGECKO_API_KEY ? { 'x-cg-pro-api-key': COINGECKO_API_KEY } : {}
+            }
         );
 
         if (!response.ok) {
-            console.warn(`CoinGecko API error: ${response.status}`);
-            return null;
+            throw new Error(`CoinGecko API error: ${response.status}`);
         }
 
         const data = await response.json();
-        const tokenData = data[coinId];
+        const coinData = data[coinId];
 
-        if (!tokenData) {
+        if (!coinData) {
             return null;
         }
 
         const priceData = {
-            price: tokenData.usd || 0,
-            change24h: tokenData.usd_24h_change || 0,
-            marketCap: tokenData.usd_market_cap || 0,
+            price: coinData.usd,
+            change24h: coinData.usd_24h_change || 0,
+            marketCap: coinData.usd_market_cap || 0
         };
 
-        // Cache the result
-        priceCache.set(cacheKey, {
+        // Update cache and persist
+        priceCache.set(symbol, {
             data: priceData,
             timestamp: Date.now()
         });
+        saveCache(); // Persist to localStorage
 
         return priceData;
     } catch (error) {
-        console.error('Failed to fetch price:', error);
+        console.error(`[PriceService] Failed to fetch price for ${symbol}:`, error);
+
+        // Fallback: Return expired cache if available
+        if (cached) {
+            console.warn(`[PriceService] Using stale cache for ${symbol}`);
+            return cached.data;
+        }
+
         return null;
     }
 }

@@ -1,78 +1,47 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import sri from 'vite-plugin-sri'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { resolve } from 'path'
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const isProduction = mode === 'production';
 
   return {
     plugins: [
       react(),
-      sri({
-        algorithms: ['sha384'],
-        crossorigin: 'anonymous'
-      }),
-      // Copy manifest to dist for extension
       viteStaticCopy({
         targets: [
-          {
-            src: 'manifest.json',
-            dest: '.'
-          }
+          { src: 'manifest.json', dest: '.' },
+          { src: 'public/uba-icon.svg', dest: '.' },
+          { src: 'public/octra-icon.svg', dest: '.' }
         ]
       })
     ],
 
     build: {
       outDir: 'dist',
-      sourcemap: false, // Disable sourcemaps in production for security
-      minify: 'terser',
-      terserOptions: {
-        compress: {
-          // SECURITY: Strip all console logs in production
-          drop_console: isProduction,
-          drop_debugger: isProduction,
-          pure_funcs: isProduction ? ['console.log', 'console.debug', 'console.info'] : []
-        },
-        mangle: {
-          // Mangle variable names for obfuscation
-          toplevel: true
-        },
-        format: {
-          // Remove comments
-          comments: false
-        }
-      },
+      sourcemap: false,
+      emptyOutDir: true,
+      minify: isProduction ? 'terser' : false,
       rollupOptions: {
         input: {
-          main: './index.html',
-          background: './src/background/service-worker.js'
+          popup: resolve(__dirname, 'index.html'),
+          background: resolve(__dirname, 'src/background/background.js')
         },
         output: {
           entryFileNames: (chunkInfo) => {
-            // Keep service worker path clean
-            return chunkInfo.name === 'background'
-              ? 'src/background/[name].js'
-              : 'assets/[name]-[hash].js';
-          }
+            if (chunkInfo.name === 'background') {
+              return 'background.js';
+            }
+            return 'assets/[name]-[hash].js';
+          },
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
+          manualChunks: undefined
         }
       }
     },
 
-    server: {
-      proxy: {
-        '/api': {
-          target: 'https://octra.network',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
-          secure: true,
-        }
-      }
-    },
-
-    // SECURITY: Strict CSP headers for development
     define: {
       'process.env.NODE_ENV': JSON.stringify(mode)
     }

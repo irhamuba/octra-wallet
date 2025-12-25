@@ -44,29 +44,23 @@ class OCS01Contract {
      */
     async callView(method, params = [], callerAddress) {
         try {
-            const response = await fetch(`${this.rpcClient.rpcUrl}/contract/call-view`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contract: this.contractAddress,
-                    method: method,
-                    params: params,
-                    caller: callerAddress
-                })
+            const result = await this.rpcClient.post('/contract/call-view', {
+                contract: this.contractAddress,
+                method: method,
+                params: params,
+                caller: callerAddress
             });
 
-            const result = await response.json();
-
-            if (result.status === 'success') {
+            if (result.ok && result.json && result.json.status === 'success') {
                 return {
                     success: true,
-                    result: result.result
+                    result: result.json.result
                 };
             }
 
             return {
                 success: false,
-                error: result.error || 'Call failed'
+                error: result.error || (result.json && result.json.error) || 'Call failed'
             };
         } catch (error) {
             console.error(`OCS01 callView error (${method}):`, error);
@@ -98,27 +92,21 @@ class OCS01Contract {
             });
 
             // Submit to network
-            const response = await fetch(`${this.rpcClient.rpcUrl}/call-contract`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contract: this.contractAddress,
-                    method: method,
-                    params: params,
-                    caller: callerAddress,
-                    nonce: nonce,
-                    timestamp: timestamp,
-                    signature: signedData.signature,
-                    public_key: signedData.publicKey
-                })
+            const result = await this.rpcClient.post('/call-contract', {
+                contract: this.contractAddress,
+                method: method,
+                params: params,
+                caller: callerAddress,
+                nonce: nonce,
+                timestamp: timestamp,
+                signature: signedData.signature,
+                public_key: signedData.publicKey
             });
 
-            const result = await response.json();
-
-            if (result.tx_hash) {
+            if (result.ok && result.json && result.json.tx_hash) {
                 return {
                     success: true,
-                    txHash: result.tx_hash
+                    txHash: result.json.tx_hash
                 };
             }
 
@@ -197,7 +185,17 @@ class OCS01Manager {
     constructor() {
         this.contracts = new Map(); // address -> OCS01Contract
         this.userContracts = new Map(); // userAddress -> Set of contractAddresses
+        this._password = null;
+        // Legacy load (non-secure)
         this.loadCustomTokens();
+    }
+
+    /**
+     * Initialize with password for secure storage
+     */
+    async initializeSecure(password) {
+        this._password = password;
+        await this.loadCustomTokensSecure();
     }
 
     /**
@@ -218,13 +216,30 @@ class OCS01Manager {
             const stored = localStorage.getItem('octra_custom_tokens');
             if (stored) {
                 const parsed = JSON.parse(stored);
-                // parsed is { userAddress: [contractAddress1, ...] }
                 Object.entries(parsed).forEach(([userAddress, contracts]) => {
                     this.userContracts.set(userAddress, new Set(contracts));
                 });
             }
         } catch (e) {
             console.error('Failed to load custom tokens', e);
+        }
+    }
+
+    /**
+     * Load custom tokens from secure storage
+     */
+    async loadCustomTokensSecure() {
+        if (!this._password) return;
+        try {
+            const { loadCustomTokensSecure } = await import('../utils/storageSecure');
+            const data = await loadCustomTokensSecure(this._password);
+            if (data) {
+                Object.entries(data).forEach(([userAddress, contracts]) => {
+                    this.userContracts.set(userAddress, new Set(contracts));
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load secure custom tokens', error);
         }
     }
 
@@ -239,13 +254,20 @@ class OCS01Manager {
         this.saveCustomTokens();
     }
 
-    saveCustomTokens() {
+    async saveCustomTokens() {
         try {
             const data = {};
             this.userContracts.forEach((contracts, userAddress) => {
                 data[userAddress] = Array.from(contracts);
             });
-            localStorage.setItem('octra_custom_tokens', JSON.stringify(data));
+
+            if (this._password) {
+                const { saveCustomTokensSecure } = await import('../utils/storageSecure');
+                await saveCustomTokensSecure(data, this._password);
+            } else {
+                // Fallback to legacy if no password (should not happen in secure mode)
+                localStorage.setItem('octra_custom_tokens', JSON.stringify(data));
+            }
         } catch (e) {
             console.error('Failed to save custom tokens', e);
         }
@@ -261,52 +283,64 @@ class OCS01Manager {
     /**
      * Get user's token balances from all known contracts
      */
+    /**
+     * Get user's token balances from all known contracts (PARALLEL OPTIMIZATION)
+     */
     async getUserTokenBalances(userAddress, network = 'testnet') {
-        const balances = [];
         const contracts = this.getKnownContracts(network);
-
-        for (const contractInfo of contracts) {
-            try {
-                const contract = this.getContract(contractInfo.address, network);
-                const result = await contract.getCredits(userAddress, userAddress);
-
-                if (result.success) {
-                    balances.push({
-                        contractAddress: contractInfo.address,
-                        contractName: contractInfo.name,
-                        balance: parseFloat(result.result) || 0,
-                        verified: contractInfo.verified
-                    });
-                }
-            } catch (error) {
-                console.error(`Failed to get balance from ${contractInfo.name}:`, error);
-            }
-        }
-
-        // Add user's custom contracts
         const customContracts = this.userContracts.get(userAddress) || new Set();
-        for (const contractAddress of customContracts) {
-            if (contracts.some(c => c.address === contractAddress)) continue;
 
+        // Combine all contracts to fetch
+        const allTargets = [
+            ...contracts.map(c => ({ address: c.address, name: c.name, verified: c.verified, isCustom: false })),
+            ...Array.from(customContracts)
+                .filter(addr => !contracts.some(c => c.address === addr))
+                .map(addr => ({ address: addr, name: 'Custom Contract', verified: false, isCustom: true }))
+        ];
+
+        if (allTargets.length === 0) return [];
+
+        // STRICT SERIAL EXECUTION: 1 request at a time to solve persistent 503 errors
+        // "Slow is Smooth, Smooth is Fast"
+        const results = [];
+
+        for (const target of allTargets) {
             try {
-                const contract = this.getContract(contractAddress, network);
-                const result = await contract.getCredits(userAddress, userAddress);
+                // FORCE DELAY: Wait 600ms between requests
+                // This gives the RPC server breathing room
+                if (results.length > 0) {
+                    await new Promise(r => setTimeout(r, 600));
+                }
 
-                if (result.success) {
-                    balances.push({
-                        contractAddress: contractAddress,
-                        contractName: 'Custom Contract',
-                        balance: parseFloat(result.result) || 0,
-                        verified: false,
-                        isCustom: true
+                const contract = this.getContract(target.address, network);
+
+                // TIMEOUT GUARD: 10 seconds
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), 10000)
+                );
+
+                const response = await Promise.race([
+                    contract.getCredits(userAddress, userAddress),
+                    timeoutPromise
+                ]);
+
+                if (response && response.success) {
+                    results.push({
+                        contractAddress: target.address,
+                        contractName: target.name,
+                        balance: parseFloat(response.result) || 0,
+                        verified: target.verified,
+                        isCustom: target.isCustom
                     });
                 }
             } catch (error) {
-                console.error(`Failed to get balance from custom contract ${contractAddress}:`, error);
+                console.warn(`[OCS01] Failed to fetch ${target.name}:`, error.message);
+                // On error, wait even longer before next try
+                await new Promise(r => setTimeout(r, 1000));
             }
         }
 
-        return balances;
+        return results;
     }
 
 

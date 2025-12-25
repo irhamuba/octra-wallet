@@ -21,10 +21,8 @@ import {
     AnimatedLockIcon,
     AlertIcon
 } from '../shared/Icons';
-// ... other imports
-// ... other imports
 import { StepHeader } from './StepHeader/StepHeader';
-import { getPasswordStrength } from '../../utils/validation';
+import { calculatePasswordStrength } from '../../utils/validation';
 import './WelcomeScreen.css';
 import './SuccessSplash.css';
 
@@ -135,7 +133,7 @@ export function CreateWalletScreen({ onBack, onComplete }) {
     const [shuffledOptions, setShuffledOptions] = useState([]);
     const [verificationError, setVerificationError] = useState('');
 
-    const passwordStrength = getPasswordStrength(password);
+    const passwordStrength = calculatePasswordStrength(password);
 
     // Helper to finish process after splash
     const handleFinalSuccess = () => {
@@ -505,7 +503,7 @@ export function ImportWalletScreen({ onBack, onComplete }) {
     const [isSuccess, setIsSuccess] = useState(false);
     const [wallet, setWallet] = useState(null);
 
-    const passwordStrength = getPasswordStrength(password);
+    const passwordStrength = calculatePasswordStrength(password);
 
     const handleSetPassword = () => {
         if (password.length < 8) {

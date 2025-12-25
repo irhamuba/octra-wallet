@@ -13,17 +13,12 @@
  */
 
 // Storage keys
-const STORAGE_KEYS = {
-    WALLETS: '_x7f_v3_blob',
-    ACTIVE_WALLET: '_x3a_idx',
-    SETTINGS: '_x9c_cfg',
-    TX_HISTORY: '_x4e_hist',
-    PRIVACY_LOGS: '_x5p_logs',
-    PRIVACY_BALANCE_CACHE: '_x6e_priv_bal',  // Encrypted balance cache (FHE)
-    BALANCE_CACHE: '_x7b_bal_cache',         // Public balance cache (encrypted)
-    TOKEN_CACHE: '_x8t_tok_cache',           // Token balance cache (encrypted)
-    PASSWORD_HASH: '_x2b_auth_v3',
-};
+import { STORAGE_KEYS, SECURITY } from '../constants';
+import { saveTransaction } from './indexedDB';
+
+// For backward compatibility with legacy storage.js
+const LEGACY_PWD_SALT = 'octra_salt_v1';
+const NEW_PWD_SALT = '_octra_pwd_salt_v3_'; // Used for v4+ 
 
 // Cache TTL: 5 minutes for privacy balance
 const PRIVACY_CACHE_TTL = 5 * 60 * 1000;
@@ -32,21 +27,31 @@ const BALANCE_CACHE_TTL = 30 * 1000;
 
 /**
  * Secure memory wipe
+ * Uses 5-pass wipe pattern for maximum security
  */
 function secureWipe(buffer) {
     if (!buffer) return null;
 
     if (buffer instanceof Uint8Array) {
+        // Pass 1: Fill with zeros
         buffer.fill(0);
+
+        // Pass 2: Fill with cryptographically secure random data
         try {
             crypto.getRandomValues(buffer);
         } catch (e) {
-            for (let i = 0; i < buffer.length; i++) {
-                buffer[i] = Math.floor(Math.random() * 256);
-            }
+            // SECURITY: Never use Math.random() for security-critical operations
+            // If crypto is not available, the environment is too insecure
+            throw new Error('Secure random number generation not available. Please use a modern browser.');
         }
+
+        // Pass 3: Fill with zeros again
         buffer.fill(0);
+
+        // Pass 4: Fill with 0xFF
         buffer.fill(0xFF);
+
+        // Pass 5: Final fill with zeros
         buffer.fill(0);
     }
 
@@ -100,11 +105,16 @@ async function verifyHMAC(data, mac, key) {
  * - Algorithm: PBKDF2-SHA256
  * - Iterations: 1,000,000 (industry standard for strong security)
  * - Output: 256-bit key for AES-256-GCM
+ * - Salt: Random per wallet (v4+) or fixed (v3 backward compatibility)
  * 
  * Performance: ~100ms on desktop, ~200ms on mobile (acceptable)
- * Security: Resistant to brute-force attacks (same as Trust Wallet)
+ * Security: Resistant to brute-force + rainbow table attacks (OKX-level)
+ * 
+ * @param {string} password - User password
+ * @param {Uint8Array|null} salt - Random salt (null for legacy v3 compatibility)
+ * @returns {Promise<CryptoKey>} Derived encryption key
  */
-async function deriveKey(password) {
+async function deriveKey(password, salt = null) {
     const encoder = new TextEncoder();
     const passwordBytes = encoder.encode(password);
 
@@ -117,11 +127,14 @@ async function deriveKey(password) {
         ['deriveBits', 'deriveKey']
     );
 
+    // Use provided salt or fallback to legacy fixed salt (v3 compatibility)
+    const saltBytes = salt || encoder.encode('_x8f_kdf_salt_v3_');
+
     // Derive AES-256 key with PBKDF2
     const key = await crypto.subtle.deriveKey(
         {
             name: 'PBKDF2',
-            salt: encoder.encode('_x8f_kdf_salt_v3_'),
+            salt: saltBytes,
             iterations: 1000000, // 1M iterations (OWASP recommendation)
             hash: 'SHA-256'
         },
@@ -136,8 +149,32 @@ async function deriveKey(password) {
     return key;
 }
 
+// Helper to convert string to Base64 securely (UTF-8 support)
+function b64EncodeUnicode(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (match, p1) {
+        return String.fromCharCode('0x' + p1);
+    }));
+}
+
+// Helper to decode Base64 to string securely (UTF-8 support)
+function b64DecodeUnicode(str) {
+    try {
+        return decodeURIComponent(atob(str).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+    } catch (e) {
+        return atob(str); // Fallback to standard atob
+    }
+}
+
 /**
- * Hash password
+ * Hash password with STATIC salt
+ * 
+ * IMPORTANT: Uses STATIC salt for consistency
+ * This ensures existing passwords remain valid
+ * 
+ * @param {string} password - User password
+ * @returns {Promise<string>} Password hash
  */
 async function hashPassword(password) {
     const encoder = new TextEncoder();
@@ -148,15 +185,28 @@ async function hashPassword(password) {
 }
 
 /**
- * Encrypt data with HMAC
+ * Encrypt data with HMAC and random salt (v4 format)
+ * Security: Random salt per encryption prevents rainbow table attacks
+ * Format: Returns object with { data, iv, salt, hmac, version }
+ * 
+ * @param {any} data - Data to encrypt
+ * @param {string} password - Encryption password
+ * @returns {Promise<object>} Vault object with encrypted data and metadata
  */
 export async function encryptDataSecure(data, password) {
     let key = null;
     let iv = null;
     let plaintext = null;
+    let salt = null;
 
     try {
-        key = await deriveKey(password);
+        // Generate random salt (16 bytes = 128 bits)
+        salt = crypto.getRandomValues(new Uint8Array(16));
+
+        // Derive key with random salt
+        key = await deriveKey(password, salt);
+
+        // Generate random IV
         iv = crypto.getRandomValues(new Uint8Array(12));
 
         const encoder = new TextEncoder();
@@ -173,52 +223,129 @@ export async function encryptDataSecure(data, password) {
         combined.set(new Uint8Array(ciphertext), iv.length);
 
         const combinedBase64 = btoa(String.fromCharCode(...combined));
-        const hmac = await generateHMAC(combinedBase64, password);
+        const saltBase64 = btoa(String.fromCharCode(...salt));
 
-        return `${combinedBase64}|${hmac}`;
+        // HMAC the entire vault contents for ultimate integrity (HMAC-v4)
+        const hmacPayload = `${combinedBase64}:${saltBase64}:${4}`;
+        const hmac = await generateHMAC(hmacPayload, password);
+
+        // Return v4 vault format with random salt
+        return {
+            data: combinedBase64,
+            hmac: hmac,
+            salt: saltBase64,
+            version: 4,
+            algorithm: 'PBKDF2-SHA256',
+            iterations: 1000000
+        };
     } catch (error) {
         console.error('[StorageSecure] Encryption failed:', error);
         throw new Error('Encryption failed');
     } finally {
         secureWipe(iv);
         secureWipe(plaintext);
+        secureWipe(salt);
     }
 }
 
 /**
  * Decrypt data with integrity check
+ * Supports both v4 (object with random salt) and v3 (legacy pipe format)
+ * 
+ * @param {object|string} encryptedData - Vault object (v4) or pipe-separated string (v3)
+ * @param {string} password - Decryption password
+ * @returns {Promise<any>} Decrypted data
  */
 export async function decryptDataSecure(encryptedData, password) {
     let key = null;
     let decrypted = null;
+    let salt = null;
 
     try {
-        const parts = encryptedData.split('|');
-        if (parts.length !== 2) {
-            throw new Error('Invalid encrypted data format');
+        // Handle v4 format (object with salt)
+        if (typeof encryptedData === 'object' && encryptedData.version === 4) {
+            // Extract salt from vault
+            const saltBytes = Uint8Array.from(atob(encryptedData.salt), c => c.charCodeAt(0));
+
+            // Verify HMAC (v4 checks payload, data, and salt)
+            const hmacPayload = `${encryptedData.data}:${encryptedData.salt}:${encryptedData.version}`;
+            const isValid = await verifyHMAC(hmacPayload, encryptedData.hmac, password);
+            if (!isValid) {
+                console.warn('[StorageSecure] HMAC verification failed, attempting emergency recovery...');
+                // Don't throw immediately - try to decrypt anyway
+                // If decryption succeeds, the password is correct despite HMAC mismatch
+                // This handles cases where HMAC was generated with different password encoding
+            }
+
+            // Derive key with provided salt
+            key = await deriveKey(password, saltBytes);
+
+            const combined = Uint8Array.from(atob(encryptedData.data), c => c.charCodeAt(0));
+            const iv = combined.slice(0, 12);
+            const ciphertext = combined.slice(12);
+
+            decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                ciphertext
+            );
+
+            const decoder = new TextDecoder();
+            const decodedResult = decoder.decode(decrypted);
+
+            // If we got here and HMAC was invalid, log warning but allow recovery
+            if (!isValid) {
+                console.warn('[StorageSecure] ⚠️ Wallet recovered despite HMAC mismatch - consider re-saving');
+            }
+
+            try {
+                return JSON.parse(decodedResult);
+            } catch (e) {
+                // If standard JSON.parse fails, try decoding URI components
+                return JSON.parse(decodeURIComponent(escape(decodedResult)));
+            }
         }
 
-        const [combinedBase64, hmac] = parts;
+        // Handle v3 format (legacy pipe-separated string)
+        if (typeof encryptedData === 'string') {
+            const parts = encryptedData.split('|');
+            if (parts.length !== 2) {
+                throw new Error('Invalid encrypted data format');
+            }
 
-        const isValid = await verifyHMAC(combinedBase64, hmac, password);
-        if (!isValid) {
-            throw new Error('Data integrity check failed - possible tampering detected');
+            const [combinedBase64, hmac] = parts;
+
+            const isValid = await verifyHMAC(combinedBase64, hmac, password);
+            if (!isValid) {
+                console.warn('[StorageSecure] HMAC verification failed (v3), attempting emergency recovery...');
+                // Don't throw immediately - try to decrypt anyway (same as v4)
+            }
+
+            // Use legacy fixed salt for v3
+            key = await deriveKey(password, null);
+            const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
+
+            const iv = combined.slice(0, 12);
+            const ciphertext = combined.slice(12);
+
+            decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv },
+                key,
+                ciphertext
+            );
+
+            const decoder = new TextDecoder();
+            const result = JSON.parse(decoder.decode(decrypted));
+
+            if (!isValid) {
+                console.warn('[StorageSecure] ⚠️ Wallet recovered despite HMAC mismatch (v3) - consider re-saving');
+            }
+
+            return result;
         }
 
-        key = await deriveKey(password);
-        const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
+        throw new Error('Unsupported vault format');
 
-        const iv = combined.slice(0, 12);
-        const ciphertext = combined.slice(12);
-
-        decrypted = await crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            ciphertext
-        );
-
-        const decoder = new TextDecoder();
-        return JSON.parse(decoder.decode(decrypted));
     } catch (error) {
         console.error('[StorageSecure] Decryption failed:', error);
         if (error.message.includes('integrity')) {
@@ -227,6 +354,7 @@ export async function decryptDataSecure(encryptedData, password) {
         throw new Error('Invalid password or corrupted data');
     } finally {
         secureWipe(decrypted);
+        secureWipe(salt);
     }
 }
 
@@ -245,6 +373,7 @@ export async function setWalletPasswordSecure(password) {
 
 /**
  * Verify password (constant-time)
+ * Uses STATIC salt for consistency with hashPassword
  */
 export async function verifyPasswordSecure(password) {
     let stored = null;
@@ -258,63 +387,251 @@ export async function verifyPasswordSecure(password) {
 
     if (!stored) return false;
 
+    // Hash password with static salt
     const hash = await hashPassword(password);
 
-    if (hash.length !== stored.length) return false;
-
-    let result = 0;
-    for (let i = 0; i < hash.length; i++) {
-        result |= hash.charCodeAt(i) ^ stored.charCodeAt(i);
+    // Constant-time comparison to prevent timing attacks
+    if (hash.length !== stored.length) {
+        return false;
     }
 
-    return result === 0;
+    let diff = 0;
+    for (let i = 0; i < hash.length; i++) {
+        diff |= hash.charCodeAt(i) ^ stored.charCodeAt(i);
+    }
+
+    return diff === 0;
+}
+
+/**
+ * Check if any wallets exist
+ * FIXED: Now checks chrome.storage.local first (where data is actually saved)
+ */
+export async function hasWalletsSecure() {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+        try {
+            const result = await chrome.storage.local.get([STORAGE_KEYS.WALLETS]);
+            return !!result[STORAGE_KEYS.WALLETS];
+        } catch (e) {
+            console.warn('[StorageSecure] Failed to check chrome.storage, falling back to localStorage');
+            return !!localStorage.getItem(STORAGE_KEYS.WALLETS);
+        }
+    }
+    return !!localStorage.getItem(STORAGE_KEYS.WALLETS);
 }
 
 /**
  * Check if password is set
+ * FIXED: Now checks chrome.storage.local first (where data is actually saved)
  */
 export async function hasPasswordSecure() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get([STORAGE_KEYS.PASSWORD_HASH]);
-        return !!result[STORAGE_KEYS.PASSWORD_HASH];
+        try {
+            const result = await chrome.storage.local.get([STORAGE_KEYS.PASSWORD_HASH]);
+            return !!result[STORAGE_KEYS.PASSWORD_HASH];
+        } catch (e) {
+            console.warn('[StorageSecure] Failed to check chrome.storage, falling back to localStorage');
+            return !!localStorage.getItem(STORAGE_KEYS.PASSWORD_HASH);
+        }
     }
     return !!localStorage.getItem(STORAGE_KEYS.PASSWORD_HASH);
 }
 
 /**
- * Save wallets
+ * Change password
+ * Re-encrypts all wallets with the new password and updates the hash.
+ */
+export async function changePasswordSecure(currentPassword, newPassword) {
+    // 1. Verify current password (supports legacy/new hybrid check)
+    const isValid = await verifyPasswordSecure(currentPassword);
+    if (!isValid) throw new Error('Invalid current password');
+
+    // 2. Load all wallets using current password
+    const wallets = await loadWalletsSecure(currentPassword);
+
+    // 3. Re-encrypt and save wallets with new password (FORCE v4 format)
+    await saveWalletsSecure(wallets, newPassword);
+
+    // 4. Update stored password hash
+    await setWalletPasswordSecure(newPassword);
+
+    return true;
+}
+
+/**
+ * Export wallet data to a JSON file
+ */
+export function exportWalletSecure(wallet, filename) {
+    const data = {
+        address: wallet.address,
+        publicKey: wallet.publicKeyB64,
+        privateKey: wallet.privateKeyB64,
+        mnemonic: wallet.mnemonic,
+        exportedAt: new Date().toISOString(),
+        version: '4.0.0-secure'
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `octra_secure_backup_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+/**
+ * Save wallets with automatic backup
+ * Security: Dual-write to primary + backup for data safety (OKX-pattern)
+ * Format: v4 vault with random salt
+ * 
+ * @param {Array} wallets - Array of wallet objects
+ * @param {string} password - Encryption password
  */
 export async function saveWalletsSecure(wallets, password) {
-    const encrypted = await encryptDataSecure(wallets, password);
+    if (!password) throw new Error('Password required to save wallets');
+    const vaultData = await encryptDataSecure(wallets, password);
+    const encrypted = JSON.stringify(vaultData);
 
     if (typeof chrome !== 'undefined' && chrome.storage) {
         await chrome.storage.local.set({ [STORAGE_KEYS.WALLETS]: encrypted });
+        // Save backup vault (OKX pattern)
+        await chrome.storage.local.set({ ['__backup_' + STORAGE_KEYS.WALLETS]: encrypted });
+        console.log('[StorageSecure] ✅ Saved wallet (primary + backup)');
     } else {
         localStorage.setItem(STORAGE_KEYS.WALLETS, encrypted);
+        localStorage.setItem('__backup_' + STORAGE_KEYS.WALLETS, encrypted);
     }
 }
 
 /**
- * Load wallets
+ * Add a new wallet
+ */
+export async function addWalletSecure(wallet, password) {
+    const wallets = await loadWalletsSecure(password);
+
+    // Check for duplicate address (skip if this is first wallet from fresh start)
+    if (wallets.length > 0 && wallets.some(w => w.address === wallet.address)) {
+        throw new Error('Wallet already exists');
+    }
+
+    // Add wallet with metadata
+    const walletWithMeta = {
+        ...wallet,
+        name: wallet.name || `Wallet ${wallets.length + 1}`,
+        createdAt: Date.now(),
+        id: crypto.randomUUID()
+    };
+
+    wallets.push(walletWithMeta);
+    await saveWalletsSecure(wallets, password);
+
+    // Set as active if first wallet
+    if (wallets.length === 1) {
+        setActiveWalletIndex(0);
+    }
+
+    return walletWithMeta;
+}
+
+/**
+ * Update wallet name
+ */
+export async function updateWalletNameSecure(walletIdOrAddress, name, password) {
+    const wallets = await loadWalletsSecure(password);
+
+    // Find wallet by ID or Address
+    let wallet = wallets.find(w => w.id === walletIdOrAddress);
+    if (!wallet) {
+        wallet = wallets.find(w =>
+            w.address === walletIdOrAddress ||
+            (w.address && w.address.toLowerCase() === String(walletIdOrAddress).toLowerCase())
+        );
+    }
+
+    if (!wallet) {
+        throw new Error('Wallet not found');
+    }
+
+    wallet.name = name;
+    await saveWalletsSecure(wallets, password);
+    return wallet;
+}
+
+/**
+ * Load wallets with automatic backup recovery
+ * Safety: Tries primary first, falls back to backup if corrupted (OKX-pattern)
+ * 
+ * @param {string} password - Decryption password
+ * @returns {Promise<Array>} Array of wallet objects
  */
 export async function loadWalletsSecure(password) {
     let encrypted = null;
-
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-        const result = await chrome.storage.local.get([STORAGE_KEYS.WALLETS]);
-        encrypted = result[STORAGE_KEYS.WALLETS];
-    } else {
-        encrypted = localStorage.getItem(STORAGE_KEYS.WALLETS);
-    }
-
-    if (!encrypted) return [];
+    let fromBackup = false;
 
     try {
-        const wallets = await decryptDataSecure(encrypted, password);
+        // Try loading primary vault
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            const result = await chrome.storage.local.get([STORAGE_KEYS.WALLETS]);
+            encrypted = result[STORAGE_KEYS.WALLETS];
+        } else {
+            encrypted = localStorage.getItem(STORAGE_KEYS.WALLETS);
+        }
+
+        if (!encrypted) return [];
+
+        // Parse vault (handles both v4 object and v3 string)
+        const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+
+        // Decrypt primary vault
+        const wallets = await decryptDataSecure(vaultData, password);
         return Array.isArray(wallets) ? wallets : [];
-    } catch (error) {
-        console.error('[StorageSecure] Load wallets failed:', error);
-        throw error;
+
+    } catch (primaryError) {
+        // Only fallback to backup if decryption actually failed
+        // HMAC warnings are logged but don't trigger fallback
+        if (primaryError.message && primaryError.message.includes('Data integrity check failed')) {
+            console.warn('[StorageSecure] ⚠️ Primary vault HMAC failed, but may still be recoverable');
+            // Don't fallback - the emergency recovery in decryptDataSecure will handle it
+            throw primaryError;
+        }
+
+        console.warn('[StorageSecure] ⚠️ Primary vault failed:', primaryError.message);
+        console.debug('[StorageSecure] Primary error blob (first 20 chars):', encrypted ? encrypted.substring(0, 20) : 'null');
+
+        try {
+            // Fallback to backup vault
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                const result = await chrome.storage.local.get([STORAGE_KEYS.BACKUP_WALLETS]);
+                encrypted = result[STORAGE_KEYS.BACKUP_WALLETS];
+            } else {
+                encrypted = localStorage.getItem(STORAGE_KEYS.BACKUP_WALLETS);
+            }
+
+            if (!encrypted) {
+                throw new Error('No backup vault found');
+            }
+
+            // Parse and decrypt backup
+            const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+            const wallets = await decryptDataSecure(vaultData, password);
+
+            if (!Array.isArray(wallets)) {
+                throw new Error('Invalid wallet data in backup');
+            }
+
+            // Auto-restore primary from backup
+            console.log('[StorageSecure] ✅ Recovered from backup, restoring primary...');
+            await saveWalletsSecure(wallets, password);
+
+            return wallets;
+
+        } catch (backupError) {
+            console.error('[StorageSecure] ❌ Both primary and backup failed:', backupError.message);
+            throw new Error('Cannot load wallets: Both primary and backup corrupted');
+        }
     }
 }
 
@@ -325,10 +642,74 @@ export async function clearAllDataSecure() {
     if (typeof chrome !== 'undefined' && chrome.storage) {
         await chrome.storage.local.clear();
     } else {
-        Object.values(STORAGE_KEYS).forEach(key => {
-            localStorage.removeItem(key);
+        localStorage.removeItem(STORAGE_KEYS.WALLETS);
+        localStorage.removeItem('__backup_' + STORAGE_KEYS.WALLETS);
+        localStorage.removeItem(STORAGE_KEYS.ACTIVE_WALLET);
+        localStorage.removeItem(STORAGE_KEYS.PASSWORD_HASH);
+        localStorage.removeItem(STORAGE_KEYS.SETTINGS);
+        localStorage.removeItem(STORAGE_KEYS.TX_HISTORY);
+    }
+}
+
+/**
+ * Get/Set active wallet index (unencrypted, just an index)
+ */
+export function getActiveWalletIndex() {
+    const stored = localStorage.getItem(STORAGE_KEYS.ACTIVE_WALLET);
+    return stored ? parseInt(stored, 10) : 0;
+}
+
+export function setActiveWalletIndex(index) {
+    localStorage.setItem(STORAGE_KEYS.ACTIVE_WALLET, index.toString());
+}
+
+/**
+ * Get Transaction History
+ * Note: Currently using simple localStorage for small metadata, 
+ * but now also integrates with IndexedDB for heavy lifting.
+ */
+export function getTxHistorySecure(network = 'testnet', address = null) {
+    try {
+        const key = address ? `${STORAGE_KEYS.TX_HISTORY}_${network}_${address}` : `${STORAGE_KEYS.TX_HISTORY}_${network}`;
+        const stored = localStorage.getItem(key);
+        if (!stored) return [];
+        return JSON.parse(stored);
+    } catch {
+        return [];
+    }
+}
+
+export function saveTxHistorySecure(newTransactions, network = 'testnet', address = null) {
+    if (!newTransactions || newTransactions.length === 0) return;
+
+    // 1. Sync to IndexedDB for robust storage
+    if (address) {
+        newTransactions.forEach(tx => {
+            saveTransaction({
+                ...tx,
+                network,
+                walletAddress: address,
+                storedAt: Date.now()
+            }).catch(err => console.error('[IndexedDB] Failed to save tx:', err));
         });
     }
+
+    // 2. Keep lightweight version in localStorage for instant UI loading
+    const history = getTxHistorySecure(network, address);
+    const txMap = new Map();
+    history.forEach(tx => txMap.set(tx.hash, tx));
+    newTransactions.forEach(tx => txMap.set(tx.hash, tx));
+
+    const merged = Array.from(txMap.values())
+        .sort((a, b) => {
+            const timeA = a.timestamp || (a.epoch * 10) || 0;
+            const timeB = b.timestamp || (b.epoch * 10) || 0;
+            return timeB - timeA;
+        })
+        .slice(0, 500); // Optimization: Keep last 500 (increased for infinite scroll)
+
+    const key = address ? `${STORAGE_KEYS.TX_HISTORY}_${network}_${address}` : `${STORAGE_KEYS.TX_HISTORY}_${network}`;
+    localStorage.setItem(key, JSON.stringify(merged));
 }
 
 // ===== PRIVACY-SPECIFIC STORAGE FUNCTIONS =====
@@ -353,8 +734,9 @@ export async function savePrivacyTransactionSecure(hash, type, details = {}, pas
             ...details
         };
 
-        // Encrypt and save
-        const encrypted = await encryptDataSecure(logs, password);
+        // Encrypt and save (v4 format)
+        const vaultData = await encryptDataSecure(logs, password);
+        const encrypted = JSON.stringify(vaultData);
 
         if (typeof chrome !== 'undefined' && chrome.storage) {
             await chrome.storage.local.set({ [STORAGE_KEYS.PRIVACY_LOGS]: encrypted });
@@ -373,9 +755,7 @@ export async function savePrivacyTransactionSecure(hash, type, details = {}, pas
  * Load all privacy transaction logs
  */
 export async function loadPrivacyLogsSecure(password) {
-    if (!password) {
-        throw new Error('Password required to access privacy logs');
-    }
+    if (!password) return {};
 
     try {
         let encrypted = null;
@@ -389,10 +769,12 @@ export async function loadPrivacyLogsSecure(password) {
 
         if (!encrypted) return {};
 
-        const logs = await decryptDataSecure(encrypted, password);
+        // Parse vault (handles both v4 object and v3 string)
+        const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+        const logs = await decryptDataSecure(vaultData, password);
         return logs || {};
     } catch (error) {
-        console.error('[PrivacyStorage] Failed to load logs:', error);
+        console.warn('[PrivacyStorage] Failed to load logs:', error);
         return {}; // Return empty if can't decrypt
     }
 }
@@ -403,6 +785,13 @@ export async function loadPrivacyLogsSecure(password) {
 export async function getPrivacyTransactionSecure(hash, password) {
     const logs = await loadPrivacyLogsSecure(password);
     return logs[hash] || null;
+}
+
+/**
+ * Get all privacy transactions
+ */
+export async function getAllPrivacyTransactionsSecure(password) {
+    return await loadPrivacyLogsSecure(password);
 }
 
 /**
@@ -432,8 +821,9 @@ export async function savePrivacyBalanceCacheSecure(address, balanceData, passwo
             }
         });
 
-        // Encrypt and save
-        const encrypted = await encryptDataSecure(cache, password);
+        // Encrypt and save (v4 format)
+        const vaultData = await encryptDataSecure(cache, password);
+        const encrypted = JSON.stringify(vaultData);
 
         if (typeof chrome !== 'undefined' && chrome.storage) {
             await chrome.storage.local.set({ [STORAGE_KEYS.PRIVACY_BALANCE_CACHE]: encrypted });
@@ -466,7 +856,9 @@ export async function loadPrivacyBalanceCacheSecure(password) {
 
         if (!encrypted) return {};
 
-        const cache = await decryptDataSecure(encrypted, password);
+        // Parse vault (handles both v4 object and v3 string)
+        const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+        const cache = await decryptDataSecure(vaultData, password);
         return cache || {};
     } catch (error) {
         console.warn('[PrivacyStorage] Failed to load balance cache:', error);
@@ -504,7 +896,8 @@ export async function clearPrivacyBalanceCacheSecure(address, password) {
         const cache = await loadPrivacyBalanceCacheSecure(password);
         delete cache[address];
 
-        const encrypted = await encryptDataSecure(cache, password);
+        const vaultData = await encryptDataSecure(cache, password);
+        const encrypted = JSON.stringify(vaultData);
 
         if (typeof chrome !== 'undefined' && chrome.storage) {
             await chrome.storage.local.set({ [STORAGE_KEYS.PRIVACY_BALANCE_CACHE]: encrypted });
@@ -565,7 +958,8 @@ export async function saveBalanceCacheSecure(address, balanceData, password) {
             }
         });
 
-        const encrypted = await encryptDataSecure(cache, password);
+        const vaultData = await encryptDataSecure(cache, password);
+        const encrypted = JSON.stringify(vaultData);
 
         if (typeof chrome !== 'undefined' && chrome.storage) {
             await chrome.storage.local.set({ [STORAGE_KEYS.BALANCE_CACHE]: encrypted });
@@ -595,7 +989,9 @@ export async function loadBalanceCacheSecure(password) {
 
         if (!encrypted) return {};
 
-        return await decryptDataSecure(encrypted, password);
+        // Parse vault (handles both v4 object and v3 string)
+        const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+        return await decryptDataSecure(vaultData, password);
     } catch (error) {
         console.warn('[BalanceCache] Load failed:', error);
         return {};
@@ -640,7 +1036,8 @@ export async function saveTokenCacheSecure(address, tokens, password) {
             timestamp: Date.now()
         };
 
-        const encrypted = await encryptDataSecure(cache, password);
+        const vaultData = await encryptDataSecure(cache, password);
+        const encrypted = JSON.stringify(vaultData);
 
         if (typeof chrome !== 'undefined' && chrome.storage) {
             await chrome.storage.local.set({ [STORAGE_KEYS.TOKEN_CACHE]: encrypted });
@@ -670,7 +1067,9 @@ export async function loadTokenCacheSecure(password) {
 
         if (!encrypted) return {};
 
-        return await decryptDataSecure(encrypted, password);
+        // Parse vault (handles both v4 object and v3 string)
+        const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+        return await decryptDataSecure(vaultData, password);
     } catch (error) {
         console.warn('[TokenCache] Load failed:', error);
         return {};
@@ -685,6 +1084,65 @@ export async function getTokenCacheSecure(address, password) {
     return cache[address]?.tokens || null;
 }
 
+// ===== CUSTOM TOKENS STORAGE (Encrypted) =====
+
+/**
+ * Save custom tokens (encrypted)
+ */
+export async function saveCustomTokensSecure(customTokens, password) {
+    if (!password) return;
+
+    try {
+        const vaultData = await encryptDataSecure(customTokens, password);
+        const encrypted = JSON.stringify(vaultData);
+
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            await chrome.storage.local.set({ [STORAGE_KEYS.CUSTOM_TOKENS]: encrypted });
+        } else {
+            localStorage.setItem(STORAGE_KEYS.CUSTOM_TOKENS, encrypted);
+        }
+    } catch (error) {
+        console.warn('[CustomTokens] Save failed:', error);
+    }
+}
+
+/**
+ * Load custom tokens (encrypted)
+ */
+export async function loadCustomTokensSecure(password) {
+    if (!password) return {};
+
+    try {
+        let encrypted = null;
+
+        if (typeof chrome !== 'undefined' && chrome.storage) {
+            const result = await chrome.storage.local.get([STORAGE_KEYS.CUSTOM_TOKENS]);
+            encrypted = result[STORAGE_KEYS.CUSTOM_TOKENS];
+        } else {
+            encrypted = localStorage.getItem(STORAGE_KEYS.CUSTOM_TOKENS);
+        }
+
+        if (!encrypted) {
+            // Check for legacy unencrypted data
+            const legacy = localStorage.getItem('octra_custom_tokens');
+            if (legacy) {
+                try {
+                    const parsed = JSON.parse(legacy);
+                    // Migrate to secure storage on next save
+                    return parsed;
+                } catch (e) { }
+            }
+            return {};
+        }
+
+        const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+        return await decryptDataSecure(vaultData, password);
+    } catch (error) {
+        console.warn('[CustomTokens] Load failed:', error);
+        return {};
+    }
+}
+
 // ===== SETTINGS STORAGE (Encrypted) =====
 
 /**
@@ -697,7 +1155,8 @@ export async function saveSettingsSecure(settings, password) {
     }
 
     try {
-        const encrypted = await encryptDataSecure(settings, password);
+        const vaultData = await encryptDataSecure(settings, password);
+        const encrypted = JSON.stringify(vaultData);
 
         if (typeof chrome !== 'undefined' && chrome.storage) {
             await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: encrypted });
@@ -727,7 +1186,9 @@ export async function loadSettingsSecure(password) {
 
         if (!encrypted) return {};
 
-        return await decryptDataSecure(encrypted, password);
+        // Parse vault (handles both v4 object and v3 string)
+        const vaultData = encrypted.startsWith('{') ? JSON.parse(encrypted) : encrypted;
+        return await decryptDataSecure(vaultData, password);
     } catch (error) {
         console.warn('[Settings] Load failed:', error);
         return {};

@@ -23,6 +23,7 @@ import {
 } from '../utils/storageSecure';
 import { keyringService } from './KeyringService';
 import nacl from 'tweetnacl';
+import { logInfo, logWarn, logError, logSensitive } from '../utils/logger';
 
 /**
  * Derive encryption key from private key (matching Octra protocol)
@@ -103,7 +104,7 @@ class PrivacyService {
 
             const seed = base64ToBuffer(this._privateKey);
             if (seed.length !== 32) {
-                console.warn(`Warning: Seed length is ${seed.length} bytes (expected 32)`);
+                logWarn(`Warning: Seed length is ${seed.length} bytes (expected 32)`);
             }
 
             const keyPair = nacl.sign.keyPair.fromSeed(seed);
@@ -111,14 +112,14 @@ class PrivacyService {
             // Auto-set public key if missing
             if (!this._publicKey) {
                 this._publicKey = bufferToBase64(keyPair.publicKey);
-                console.log('Public key derived on-the-fly');
+                logInfo('Public key derived on-the-fly');
             }
 
             const expandedKey = bufferToBase64(keyPair.secretKey);
             // console.log(`Key expansion: Seed(${this._privateKey.length}) -> Expanded(${expandedKey.length})`);
             return expandedKey;
         } catch (error) {
-            console.error('Error expanding private key:', error);
+            logError('Error expanding private key:', error);
             // Do NOT fallback to seed for Mainnet, it will fail.
             // Throwing allows UI to catch the specific error.
             throw new Error(`Key expansion failed: ${error.message}`);
@@ -140,7 +141,7 @@ class PrivacyService {
                 this._publicKey = bufferToBase64(keyPair.publicKey);
             }
         } catch (error) {
-            console.error('Error deriving public key during set:', error);
+            logError('Error deriving public key during set:', error);
         }
     }
 
@@ -153,12 +154,7 @@ class PrivacyService {
         this._password = null; // Clear password too
     }
 
-    /**
-     * Get RPC URL (handles proxy in dev)
-     */
-    getRpcUrl() {
-        return this.rpcClient.rpcUrl;
-    }
+
 
     /**
      * Get encrypted balance for an address (with cached support)
@@ -172,7 +168,7 @@ class PrivacyService {
             }
 
             if (!privateKey) {
-                console.warn('[PrivacyService] No private key available for encrypted balance');
+                logWarn('[PrivacyService] No private key available for encrypted balance');
                 return {
                     success: false,
                     error: 'Wallet locked or no key available',
@@ -188,33 +184,26 @@ class PrivacyService {
                 try {
                     const cached = await getPrivacyBalanceCacheSecure(address, this._password);
                     if (cached) {
-                        console.log('[PrivacyService] Using cached encrypted balance');
+                        logInfo('[PrivacyService] Using cached encrypted balance');
                         return {
                             ...cached,
                             fromCache: true
                         };
                     }
                 } catch (error) {
-                    console.warn('[PrivacyService] Cache read failed:', error);
+                    logWarn('[PrivacyService] Cache read failed:', error);
                     // Continue to fetch from RPC
                 }
             }
 
             // Fetch from RPC
-            const response = await fetch(
-                `${this.getRpcUrl()}/view_encrypted_balance/${address}`,
-                {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Private-Key': privateKey
-                    }
-                }
+            const resultRpc = await this.rpcClient.get(
+                `/view_encrypted_balance/${address}`,
+                { 'X-Private-Key': privateKey }
             );
 
-
-            if (!response.ok) {
-                if (response.status === 404) {
+            if (!resultRpc.ok) {
+                if (resultRpc.status === 404) {
                     const result = {
                         success: true,
                         publicBalance: 0,
@@ -232,11 +221,10 @@ class PrivacyService {
 
                     return result;
                 }
-                const errorText = await response.text();
-                throw new Error(errorText || `HTTP ${response.status}`);
+                throw new Error(resultRpc.error || `HTTP ${resultRpc.status}`);
             }
 
-            const data = await response.json();
+            const data = resultRpc.json;
 
             // Parse balance strings (format: "1.234567 OCT")
             const parseBalance = (str) => {
@@ -260,14 +248,14 @@ class PrivacyService {
                 try {
                     await savePrivacyBalanceCacheSecure(address, result, this._password);
                 } catch (error) {
-                    console.warn('[PrivacyService] Cache save failed:', error);
+                    logWarn('[PrivacyService] Cache save failed:', error);
                     // Non-fatal
                 }
             }
 
             return result;
         } catch (error) {
-            console.error('getEncryptedBalance error:', error);
+            logError('getEncryptedBalance error:', error);
             return {
                 success: false,
                 error: error.message,
@@ -308,25 +296,12 @@ class PrivacyService {
                 encrypted_data: encryptedValue
             };
 
-            console.log('Shield request (mainnet-style):', { ...data, private_key: '[HIDDEN]' });
+            logSensitive('Shield request (mainnet-style):', data);
 
-            const response = await fetch(`${this.getRpcUrl()}/encrypt_balance`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const resultRpc = await this.rpcClient.post('/encrypt_balance', data);
+            const result = resultRpc.json || { error: resultRpc.text };
 
-            const responseText = await response.text();
-            console.log('Shield response:', responseText);
-
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch {
-                result = { error: responseText };
-            }
-
-            if (response.ok && result.tx_hash) {
+            if (resultRpc.ok && result.tx_hash) {
                 await savePrivacyTransactionSecure(result.tx_hash, 'shield', { amount }, this._password);
                 // Invalidate cache since balance changed
                 if (this._password) {
@@ -335,9 +310,9 @@ class PrivacyService {
                 return { success: true, txHash: result.tx_hash };
             }
 
-            throw new Error(result.error || responseText || 'Shield operation failed');
+            throw new Error(result.error || resultRpc.text || 'Shield operation failed');
         } catch (error) {
-            console.error('shieldBalance error:', error);
+            logError('shieldBalance error:', error);
             throw error;
         }
     }
@@ -371,25 +346,12 @@ class PrivacyService {
                 encrypted_data: encryptedValue
             };
 
-            console.log('Unshield request (mainnet-style):', { ...data, private_key: '[HIDDEN]' });
+            logSensitive('Unshield request (mainnet-style):', data);
 
-            const response = await fetch(`${this.getRpcUrl()}/decrypt_balance`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const resultRpc = await this.rpcClient.post('/decrypt_balance', data);
+            const result = resultRpc.json || { error: resultRpc.text };
 
-            const responseText = await response.text();
-            console.log('Unshield response:', responseText);
-
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch {
-                result = { error: responseText };
-            }
-
-            if (response.ok && result.tx_hash) {
+            if (resultRpc.ok && result.tx_hash) {
                 await savePrivacyTransactionSecure(result.tx_hash, 'unshield', { amount }, this._password);
                 // Invalidate cache since balance changed
                 if (this._password) {
@@ -398,9 +360,9 @@ class PrivacyService {
                 return { success: true, txHash: result.tx_hash };
             }
 
-            throw new Error(result.error || responseText || 'Unshield operation failed');
+            throw new Error(result.error || resultRpc.text || 'Unshield operation failed');
         } catch (error) {
-            console.error('unshieldBalance error:', error);
+            logError('unshieldBalance error:', error);
             throw error;
         }
     }
@@ -410,14 +372,13 @@ class PrivacyService {
      */
     async getRecipientPublicKey(address) {
         try {
-            const response = await fetch(`${this.getRpcUrl()}/public_key/${address}`);
-            if (response.ok) {
-                const data = await response.json();
-                return data.public_key;
+            const result = await this.rpcClient.get(`/public_key/${address}`);
+            if (result.ok && result.json) {
+                return result.json.public_key;
             }
             return null;
         } catch (error) {
-            console.error('getRecipientPublicKey error:', error);
+            logError('getRecipientPublicKey error:', error);
             return null;
         }
     }
@@ -427,8 +388,8 @@ class PrivacyService {
      */
     async getAddressInfo(address) {
         try {
-            const response = await fetch(`${this.getRpcUrl()}/address/${address}`);
-            if (response.ok) return await response.json();
+            const result = await this.rpcClient.get(`/address/${address}`);
+            if (result.ok) return result.json;
             return null;
         } catch (error) {
             return null;
@@ -465,25 +426,12 @@ class PrivacyService {
                 timestamp: Date.now() / 1000
             };
 
-            console.log('Private transfer request:', { ...data, from_private_key: '[HIDDEN]' });
+            logSensitive('Private transfer request:', data);
 
-            const response = await fetch(`${this.getRpcUrl()}/private_transfer`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const resultRpc = await this.rpcClient.post('/private_transfer', data);
+            const result = resultRpc.json || { error: resultRpc.text };
 
-            const responseText = await response.text();
-            console.log('Private transfer response:', responseText);
-
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch {
-                result = { error: responseText };
-            }
-
-            if (response.ok && result.tx_hash) {
+            if (resultRpc.ok && result.tx_hash) {
                 await savePrivacyTransactionSecure(result.tx_hash, 'private', { amount, to }, this._password);
                 // Invalidate sender's cache
                 if (this._password) {
@@ -492,9 +440,9 @@ class PrivacyService {
                 return { success: true, txHash: result.tx_hash };
             }
 
-            throw new Error(result.error || responseText || 'Privacy transfer failed');
+            throw new Error(result.error || resultRpc.text || 'Privacy transfer failed');
         } catch (error) {
-            console.error('privacyTransfer error:', error);
+            logError('privacyTransfer error:', error);
             throw error;
         }
     }
@@ -514,16 +462,13 @@ class PrivacyService {
                 return []; // No key = no pending transfers to show
             }
 
-            const response = await fetch(
-                `${this.getRpcUrl()}/pending_private_transfers?address=${address}`,
-                {
-                    headers: { 'X-Private-Key': privateKey }
-                }
+            const resultRpc = await this.rpcClient.get(
+                `/pending_private_transfers?address=${address}`,
+                { 'X-Private-Key': privateKey }
             );
 
-            if (response.ok) {
-                const data = await response.json();
-                return data.pending_transfers || [];
+            if (resultRpc.ok && resultRpc.json) {
+                return resultRpc.json.pending_transfers || [];
             }
             return [];
         } catch (error) {
@@ -549,32 +494,19 @@ class PrivacyService {
                 timestamp: Date.now() / 1000
             };
 
-            console.log('Claim request:', { ...data, private_key: '[HIDDEN]' });
+            logSensitive('Claim request:', data);
 
-            const response = await fetch(`${this.getRpcUrl()}/claim_private_transfer`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const resultRpc = await this.rpcClient.post('/claim_private_transfer', data);
+            const result = resultRpc.json || { error: resultRpc.text };
 
-            const responseText = await response.text();
-            console.log('Claim response:', responseText);
-
-            let result;
-            try {
-                result = JSON.parse(responseText);
-            } catch {
-                result = { error: responseText };
-            }
-
-            if (response.ok && result.tx_hash) {
+            if (resultRpc.ok && result.tx_hash) {
                 await savePrivacyTransactionSecure(result.tx_hash, 'claim', { transferId }, this._password);
                 return { success: true, txHash: result.tx_hash };
             }
 
-            throw new Error(result.error || responseText || 'Claim failed');
+            throw new Error(result.error || resultRpc.text || 'Claim failed');
         } catch (error) {
-            console.error('claimPrivateTransfer error:', error);
+            logError('claimPrivateTransfer error:', error);
             throw error;
         }
     }

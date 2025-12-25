@@ -114,7 +114,7 @@ export function TransactionDetailModal({ tx, network, onClose }) {
                         <div className="tx-detail-row">
                             <span className="tx-detail-label">Address</span>
                             <div className="tx-detail-value-group">
-                                <span className="tx-detail-value mono">{truncateAddress(tx.address, 10, 10)}</span>
+                                <span className="tx-detail-value mono">{truncateAddress(tx.address, 6, 6)}</span>
                                 <button className="tx-mini-copy" onClick={() => handleCopyAddress(tx.address)}>
                                     {copiedAddress ? <CheckIcon size={12} /> : <CopyIcon size={12} />}
                                 </button>
@@ -130,7 +130,7 @@ export function TransactionDetailModal({ tx, network, onClose }) {
 
                         {tx.epoch && (
                             <div className="tx-detail-row">
-                                <span className="tx-detail-label">Block</span>
+                                <span className="tx-detail-label">Epoch</span>
                                 <span className="tx-detail-value">#{tx.epoch}</span>
                             </div>
                         )}

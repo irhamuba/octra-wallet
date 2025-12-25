@@ -17,17 +17,9 @@ import {
 } from '../../shared/Icons';
 import './Privacy.css';
 
-export function PrivacyView({ wallet, onBack, showToast }) {
-    // Try to load initial data from cache for instant display
-    const getCachedData = () => {
-        try {
-            const cached = localStorage.getItem(`privacy_data_${wallet?.address}`);
-            return cached ? JSON.parse(cached) : null;
-        } catch (e) { return null; }
-    };
-
-    const [encryptedBalance, setEncryptedBalance] = useState(getCachedData());
-    const [isLoading, setIsLoading] = useState(!encryptedBalance); // Only show full loading if no cache
+export function PrivacyView({ wallet, onBack, showToast, publicBalance }) {
+    const [encryptedBalance, setEncryptedBalance] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [pendingTransfers, setPendingTransfers] = useState([]);
 
@@ -38,19 +30,17 @@ export function PrivacyView({ wallet, onBack, showToast }) {
     const [claimModalOpen, setClaimModalOpen] = useState(false);
 
     const fetchPrivacyData = useCallback(async (isInitial = false) => {
-        if (!wallet?.address || !wallet?.privateKeyB64) return;
+        if (!wallet?.address) return;
 
-        if (isInitial && !encryptedBalance) setIsLoading(true);
+        if (isInitial) setIsLoading(true);
         setIsRefreshing(true);
 
         try {
-            privacyService.setPrivateKey(wallet.privateKeyB64);
+            // privacyService already has PK and handles internal secure cache
             const result = await privacyService.getEncryptedBalance(wallet.address);
 
             if (result.success) {
                 setEncryptedBalance(result);
-                // Save to cache
-                localStorage.setItem(`privacy_data_${wallet.address}`, JSON.stringify(result));
             }
 
             const transfers = await privacyService.getPendingTransfers(wallet.address);
@@ -69,7 +59,6 @@ export function PrivacyView({ wallet, onBack, showToast }) {
 
     const handleShieldSubmit = async (amount) => {
         try {
-            privacyService.setPrivateKey(wallet.privateKeyB64);
 
             if (shieldMode === 'shield') {
                 await privacyService.shieldBalance(wallet.address, amount);
@@ -86,7 +75,6 @@ export function PrivacyView({ wallet, onBack, showToast }) {
 
     const handlePrivateTransferSubmit = async (recipient, amount) => {
         try {
-            privacyService.setPrivateKey(wallet.privateKeyB64);
             await privacyService.privacyTransfer(wallet.address, recipient, amount);
             setTimeout(() => fetchPrivacyData(), 2000);
         } catch (error) {
@@ -97,7 +85,6 @@ export function PrivacyView({ wallet, onBack, showToast }) {
 
     const handleClaimTransfer = async (transferId) => {
         try {
-            privacyService.setPrivateKey(wallet.privateKeyB64);
             await privacyService.claimPrivateTransfer(wallet.address, transferId);
             setTimeout(() => fetchPrivacyData(), 2000);
         } catch (error) {
@@ -106,7 +93,8 @@ export function PrivacyView({ wallet, onBack, showToast }) {
         }
     };
 
-    const totalBalance = (encryptedBalance?.publicBalance || 0) + (encryptedBalance?.encryptedBalance || 0);
+    const currentPublicBalance = publicBalance !== undefined ? publicBalance : (encryptedBalance?.publicBalance || 0);
+    const totalBalance = currentPublicBalance + (encryptedBalance?.encryptedBalance || 0);
     const shieldedPercent = totalBalance > 0
         ? Math.round((encryptedBalance?.encryptedBalance || 0) / totalBalance * 100)
         : 0;
@@ -173,7 +161,7 @@ export function PrivacyView({ wallet, onBack, showToast }) {
                 <button
                     className="privacy-grid-btn"
                     onClick={() => { setShieldMode('shield'); setShieldModalOpen(true); }}
-                    disabled={isLoading || (encryptedBalance?.publicBalance || 0) <= 0}
+                    disabled={isLoading || currentPublicBalance <= 0}
                 >
                     <div className="grid-btn-icon shield">
                         <ShieldIcon size={22} />
@@ -228,7 +216,7 @@ export function PrivacyView({ wallet, onBack, showToast }) {
                 isOpen={shieldModalOpen}
                 onClose={() => setShieldModalOpen(false)}
                 mode={shieldMode}
-                balance={encryptedBalance?.publicBalance || 0}
+                balance={currentPublicBalance}
                 encryptedBalance={encryptedBalance?.encryptedBalance || 0}
                 onSubmit={handleShieldSubmit}
             />

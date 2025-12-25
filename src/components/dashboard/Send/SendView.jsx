@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import Lottie from 'lottie-react';
 import successAnimation from '../../welcome/animations/step-complete.json';
 import sendingAnimation from './animations/sending.json';
-import { isValidAddress, formatAmount, truncateAddress } from '../../../utils/crypto';
+import { isValidAddress, isValidAmount } from '../../../utils/validation';
+import { formatAmount, truncateAddress } from '../../../utils/crypto';
 import { getRpcClient } from '../../../utils/rpc';
-import { addToTxHistory } from '../../../utils/storage';
+import { saveTxHistorySecure as addToTxHistory } from '../../../utils/storageSecure';
 import { keyringService } from '../../../services/KeyringService';
 import { ocs01Manager } from '../../../services/OCS01TokenService';
 import { getFriendlyErrorMessage } from '../../../utils/errorMessages';
@@ -48,6 +49,13 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
             setAllTokens(tokensFromParent);
         }
     }, [tokensFromParent]);
+
+    // Update local balance state when parent balance changes (for Native token)
+    useEffect(() => {
+        if (selectedToken?.isNative && balance !== undefined) {
+            setTokenBalance(balance);
+        }
+    }, [balance, selectedToken]);
 
     // Calculate fee based on selected speed
     const fee = feeSpeed === 'slow' ? feeEstimates.low : feeSpeed === 'fast' ? feeEstimates.high : feeEstimates.medium;
@@ -169,7 +177,7 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
 
                 console.log(`[Polling ${attempts + 1}/${maxAttempts}]`, txData);
 
-                if (txData && txData.confirmed) {
+                if (txData && txData.status === 'confirmed') {
                     setTxStatus('confirmed');
                     onRefresh(); // Refresh balance when confirmed
                     return;
@@ -223,37 +231,67 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
 
             let result;
 
-            if (selectedToken.isNative) {
-                // SECURITY: Use KeyringService for signing native tx
-                const tx = await keyringService.signTransaction(wallet.address, {
-                    to: recipient,
-                    amount: parseFloat(amount),
-                    nonce: maxNonce + 1,
-                    message: null,
-                    fee: fee
-                });
-                result = await rpcClient.sendTransaction(tx);
-            } else if (selectedToken.isOCS01) {
-                // OCS01 Contract Transfer
-                const contract = ocs01Manager.getContract(selectedToken.contractAddress);
-                const amountRaw = Math.floor(parseFloat(amount) * 1_000_000);
-                const callResult = await contract.transfer(recipient, amountRaw, wallet.address);
+            // Race condition: Wait for RPC response OR Client-side timeout (45s)
+            // If Client-side timeout hits first, we check Mempool manually.
+            const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve('TIMEOUT'), 45000));
 
-                if (!callResult.success) {
-                    throw new Error(callResult.error || 'Contract transfer failed');
+            const sendPromise = (async () => {
+                if (selectedToken.isNative) {
+                    const tx = await keyringService.signTransaction(wallet.address, {
+                        to: recipient,
+                        amount: parseFloat(amount),
+                        nonce: maxNonce + 1,
+                        message: null,
+                        fee: fee
+                    });
+                    // Note: rpcClient.sendTransaction has 0 timeout (infinite), but we race it here.
+                    return await rpcClient.sendTransaction(tx);
+                } else if (selectedToken.isOCS01) {
+                    const contract = ocs01Manager.getContract(selectedToken.contractAddress);
+                    const amountRaw = Math.floor(parseFloat(amount) * 1_000_000);
+                    const callResult = await contract.transfer(recipient, amountRaw, wallet.address);
+                    if (!callResult.success) throw new Error(callResult.error || 'Contract transfer failed');
+                    return { txHash: callResult.txHash };
                 }
-                result = { txHash: callResult.txHash };
+            })();
+
+            const raceResult = await Promise.race([sendPromise, timeoutPromise]);
+
+            if (raceResult === 'TIMEOUT') {
+                // Timeout logic: Transaction sent but no ACK yet. Check Mempool!
+                console.log('Send Timeout - Checking Mempool...');
+                try {
+                    const stagingCheck = await rpcClient.getStagedTransactions().catch(() => []);
+                    const foundInMempool = stagingCheck.find(tx =>
+                        tx.from === wallet.address && parseInt(tx.nonce) === (maxNonce + 1)
+                    );
+
+                    if (foundInMempool) {
+                        // RECOVERY SUCCESS! detected in mempool
+                        result = { txHash: foundInMempool.hash };
+                    } else {
+                        // Truly unknown state
+                        setStep('taking_too_long');
+                        return;
+                    }
+                } catch (e) {
+                    setStep('taking_too_long');
+                    return;
+                }
+            } else {
+                result = raceResult;
             }
 
+            // If we are here, we have a valid result (hash)
             // Add to local history
-            addToTxHistory({
+            addToTxHistory([{
                 hash: result.txHash,
                 type: 'out',
                 amount: parseFloat(amount),
                 symbol: selectedToken.symbol,
                 address: recipient,
                 status: 'pending'
-            }, settings?.network || 'testnet');
+            }], settings?.network || 'testnet');
 
             setTxHash(result.txHash);
             setStep('success');
@@ -264,12 +302,13 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
             onRefresh();
         } catch (err) {
             console.error('Transaction error:', err);
+            // ... existing error handler ...
             if (err.message && err.message.includes('Keyring is locked') && onLock) {
                 onLock();
                 return;
             }
-            // Use friendly error message
-            setError(getFriendlyErrorMessage(err));
+            // DEV DEBUG: Show raw error to understand why it fails immediately
+            setError(`${getFriendlyErrorMessage(err)} (${err.message})`);
             setStep('error');
         }
     };
@@ -596,6 +635,38 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                 </div>
             )}
 
+            {/* Taking Too Long State */}
+            {
+                step === 'taking_too_long' && (
+                    <div className="flex flex-col items-center justify-center py-3xl text-center animate-fade-in">
+                        <div className="mb-xl text-warning">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <p className="text-xl font-bold mb-sm">Taking longer than usual...</p>
+                        <p className="text-secondary text-sm mb-lg max-w-xs mx-auto">
+                            The network is slow to respond, but your transaction might still be processing securely in the background.
+                        </p>
+                        <div className="bg-subtle p-md rounded-lg mb-xl text-left">
+                            <p className="text-xs font-semibold mb-xs">Recommended Action:</p>
+                            <ul className="text-xs text-secondary list-disc pl-md space-y-xs">
+                                <li>Don't resend immediately (avoids double spend).</li>
+                                <li>Go to <strong>History</strong> tab and check for 'Pending' items.</li>
+                                <li>Wait 1-2 minutes for network confirmation.</li>
+                            </ul>
+                        </div>
+
+                        <div className="flex gap-md w-full">
+                            <button className="btn btn-primary btn-lg flex-1" onClick={() => { handleReset(); onBack(); }}>
+                                Go to Dashboard
+                            </button>
+                        </div>
+                    </div>
+                )
+            }
+
             {/* Confirmation Modal - With Fee Selection */}
             <ConfirmTransactionModal
                 isOpen={showConfirmModal && step !== 'sending'}
@@ -610,6 +681,6 @@ export function SendView({ wallet, balance, nonce, onBack, onRefresh, settings, 
                 tokenSymbol={selectedToken?.symbol || 'OCT'}
                 isLoading={false}
             />
-        </div>
+        </div >
     );
 }

@@ -1,41 +1,64 @@
 /**
- * Common validation utilities for Octra Wallet
+ * Octra Wallet Validation Utilities
+ * Centralized regex and validation logic for addresses, keys, and inputs.
  */
+
+export const ADDRESS_REGEX = /^oct[1-9A-HJ-NP-Za-km-z]{43,44}$/;
+export const PRIVATE_KEY_REGEX = /^(0x)?[a-fA-F0-9]{64}$/;
+export const MNEMONIC_LENGTHS = [12, 15, 18, 21, 24];
 
 /**
- * Calculates the strength of a password
- * @param {string} password - The password to check
- * @returns {Object} - { level: string, label: string, percent: number }
+ * Validate Octra Wallet Address
  */
-export function getPasswordStrength(password) {
-    if (!password) return { level: 'none', label: '', percent: 0 };
-
-    let score = 0;
-
-    // Length
-    if (password.length >= 8) score += 1;
-    if (password.length >= 12) score += 1;
-    if (password.length >= 16) score += 1;
-
-    // Character types
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^a-zA-Z0-9]/.test(password)) score += 1;
-
-    if (score <= 2) return { level: 'weak', label: 'Weak', percent: 25 };
-    if (score <= 4) return { level: 'fair', label: 'Fair', percent: 50 };
-    if (score <= 5) return { level: 'good', label: 'Good', percent: 75 };
-    return { level: 'strong', label: 'Strong', percent: 100 };
+export function isValidAddress(address) {
+    if (!address) return false;
+    return ADDRESS_REGEX.test(address);
 }
 
 /**
- * Validates a wallet name
- * @param {string} name - The name to check
- * @returns {string|null} - Error message or null if valid
+ * Validate Private Key
  */
-export function validateWalletName(name) {
-    if (!name || !name.trim()) return 'Name cannot be empty';
-    if (name.length > 20) return 'Name is too long (max 20 chars)';
-    return null;
+export function isValidPrivateKey(pk) {
+    if (!pk) return false;
+    return PRIVATE_KEY_REGEX.test(pk);
+}
+
+/**
+ * Validate Mnemonic Phrase
+ */
+export function isValidMnemonic(mnemonic) {
+    if (!mnemonic) return false;
+    const words = mnemonic.trim().split(/\s+/);
+    return MNEMONIC_LENGTHS.includes(words.length);
+}
+
+/**
+ * Validate Amount
+ */
+export function isValidAmount(amount) {
+    const val = parseFloat(amount);
+    return !isNaN(val) && val > 0;
+}
+
+/**
+ * Get password strength
+ * @returns {object} { level: 'weak'|'fair'|'good'|'strong', percent: number, label: string }
+ */
+export function calculatePasswordStrength(password) {
+    if (!password || typeof password !== 'string') return { level: 'weak', percent: 0, label: 'Very Weak' };
+
+    let score = 0;
+    if (password.length >= 8) score += 25;
+    if (/[A-Z]/.test(password)) score += 25;
+    if (/[0-9]/.test(password)) score += 25;
+    if (/[^A-Za-z0-9]/.test(password)) score += 25;
+
+    if (password.length < 8) {
+        return { level: 'weak', percent: Math.max(5, Math.min(score, 20)), label: 'Too Short' };
+    }
+
+    if (score <= 25) return { level: 'weak', percent: 25, label: 'Weak' };
+    if (score <= 50) return { level: 'fair', percent: 50, label: 'Fair' };
+    if (score <= 75) return { level: 'good', percent: 75, label: 'Good' };
+    return { level: 'strong', percent: 100, label: 'Strong' };
 }
