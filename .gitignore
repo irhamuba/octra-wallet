@@ -17,6 +17,18 @@ dist-ssr
 .env.local
 .env.*.local
 
+# Security & Secrets
+*.pem
+*.key
+*.mb
+id_rsa
+id_rsa.pub
+
+# Build Artifacts
+*.crx
+*.zip
+*.xpi
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
