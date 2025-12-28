@@ -40,3 +40,9 @@ id_rsa.pub
 *.sln
 *.sw?
 .vercel
+
+# Testing Results (auto-generated)
+tests/results/
+test-results/
+playwright-report/
+SOCIAL_MEDIA_CAPTIONS.txt
