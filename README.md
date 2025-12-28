@@ -87,8 +87,8 @@ If you are developing or contributing to the code:
 
 ## Experience
 
-### 1. Seamless Transactions
-**Send with Confidence.** Transfer funds securely in seconds. Whether sending to a friend or paying for a service, enjoy a smooth and verified transaction experience.
+### 1. Get Started Instantly
+**Begin Your Journey.** Create a new wallet or import existing keys in seconds. Simple, fast, and no registration required—just you and the blockchain.
 
 ### 2. Your Digital Vault
 **Safe & Secure.** Access your wallet with a password that only you know. Your keys are encrypted on your device—we never see them, so only you hold the keys to your funds.
