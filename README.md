@@ -85,5 +85,23 @@ If you are developing or contributing to the code:
 -   **Encryption**: We use industry-standard AES-256 encryption derived from your password (PBKDF2).
 -   **Signing**: Transaction signing happens entirely within the extension; private keys are never exposed to any server.
 
+## Experience
+
+### 1. Your Digital Vault
+![Secure Lock Screen](edge-screenshots/1-lockscreen-original.png)
+**Safe & Secure.** Access your wallet with a password that only you know. Your keys are encrypted on your device—we never see them, so only you hold the keys to your funds.
+
+### 2. Your Money, Clear & Simple
+![Dashboard View](edge-screenshots/2-dashboard-original.png)
+**Everything at a Glance.** Check your balance, copy your address, and switch between wallets instantly. No complicated menus—just your money, ready when you are.
+
+### 3. Privacy by Design
+![Privacy Settings](edge-screenshots/3-privacy-original.png)
+**You Are Invisible.** We don't track who you are, where you are, or what you do. No analytics, no spying. Your financial life stays private, exactly how it should be.
+
+### 4. Seamless Transactions
+![Transaction Flow](edge-screenshots/4-transaction.png)
+**Send with Confidence.** Transfer funds securely in seconds. Whether sending to a friend or paying for a service, enjoy a smooth and verified transaction experience.
+
 ## License
 Proprietary - All rights reserved
