@@ -87,21 +87,17 @@ If you are developing or contributing to the code:
 
 ## Experience
 
-### 1. Your Digital Vault
-![Secure Lock Screen](edge-screenshots/1-lockscreen-original.png)
+### 1. Seamless Transactions
+**Send with Confidence.** Transfer funds securely in seconds. Whether sending to a friend or paying for a service, enjoy a smooth and verified transaction experience.
+
+### 2. Your Digital Vault
 **Safe & Secure.** Access your wallet with a password that only you know. Your keys are encrypted on your device—we never see them, so only you hold the keys to your funds.
 
-### 2. Your Money, Clear & Simple
-![Dashboard View](edge-screenshots/2-dashboard-original.png)
+### 3. Your Money, Clear & Simple
 **Everything at a Glance.** Check your balance, copy your address, and switch between wallets instantly. No complicated menus—just your money, ready when you are.
 
-### 3. Privacy by Design
-![Privacy Settings](edge-screenshots/3-privacy-original.png)
+### 4. Privacy by Design
 **You Are Invisible.** We don't track who you are, where you are, or what you do. No analytics, no spying. Your financial life stays private, exactly how it should be.
-
-### 4. Seamless Transactions
-![Transaction Flow](edge-screenshots/4-transaction.png)
-**Send with Confidence.** Transfer funds securely in seconds. Whether sending to a friend or paying for a service, enjoy a smooth and verified transaction experience.
 
 ## License
 Proprietary - All rights reserved
