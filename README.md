@@ -106,8 +106,10 @@ You may use this address to test asset transfers or to support ongoing developme
 
 ---
 
-**Official Address:**
-```text
+**Official Address:**  
 octHSp2A5VdWZYTCgts4voPPmdDSEwwKaqJzbxrFJeP3n1E
----License
+
+---
+
+**License:**  
 Proprietary – All rights reserved
