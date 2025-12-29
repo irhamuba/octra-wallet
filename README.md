@@ -98,13 +98,16 @@ If you are developing or contributing to the code:
 
 ### 4. Privacy by Design
 **You Are Invisible.** We don't track who you are, where you are, or what you do. No analytics, no spying. Your financial life stays private, exactly how it should be.
+
 ## 🧪 Testing Faucet & Development Fund
 
-The address below is designated for **network testing**, **development donations**, and feature validation. You may use this address to test asset transfers or to support ongoing development and server operations.
+The address below is designated for **network testing**, **development donations**, and feature validation.  
+You may use this address to test asset transfers or to support ongoing development and server operations.
+
+---
 
 **Official Address:**
 ```text
 octHSp2A5VdWZYTCgts4voPPmdDSEwwKaqJzbxrFJeP3n1E
-
-## License
-Proprietary - All rights reserved
+---License
+Proprietary – All rights reserved
