@@ -101,8 +101,9 @@ If you are developing or contributing to the code:
 
 ## 🧪 Testing Faucet & Development Fund
 
-The address below is designated for **network testing**, **development donations**, and feature validation.  
-You may use this address to test asset transfers or to support ongoing development and server operations.
+**If you would like to make a donation, please send it to this address.**  
+This address is used for **network testing**, **development donations**, and **feature validation**.  
+Features such as **SEND**, **SHIELD**, **PRIVATE TRANSFER**, and **SWAP** will become available as **OCTRA NETWORK** continues to evolve.
 
 ---
 
