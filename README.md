@@ -7,7 +7,7 @@ Octra Wallet is a secure, non-custodial cryptocurrency wallet extension for the 
 - **Non-Custodial**: You own your keys. Your private keys never leave your device.
 - **Secure Storage**: Advanced client-side encryption (AES-256-GCM) protecting your wallet data.
 - **Privacy First**: No tracking, no analytics, no external data collection. Direct communication with Octra RPC nodes.
-- **Full Functionality**: Send and receive OCTOR, view transaction history, and manage multiple wallets.
+- **Full Functionality**: Send and receive octra/oct token, view transaction history, and manage multiple wallets.
 - **Modern UI**: Clean, responsive, and intuitive interface with dark mode support.
 
 ## Installation (Developer Mode)
